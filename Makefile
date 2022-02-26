@@ -4,7 +4,7 @@ FLAGS	= -Wall -Wextra -Werror -std=c++98
 SRCDIR	= src
 INCDIR	= inc
 OBJDIR	= obj
-SRC		= src/main.cpp
+SRC		= $(shell find src/*.cpp)
 INC		= inc/main.hpp
 OBJ		= $(subst $(SRCDIR), $(OBJDIR), $(SRC:cpp=o))
 

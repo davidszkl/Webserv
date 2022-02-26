@@ -1,0 +1,25 @@
+usage: ./webserv [config_file]
+server must never block or hang request forever
+use only 1 poll() for all I/O , listen included
+poll() must check and read at same time
+never read or write without poll()
+no checking of errno after read or write
+FD_SET, FD_CLR, FD_ISSET, FD_ZERO
+compatible with browser of choice
+version is HTTP 1.1
+response status codes must be accurate
+default error pages
+no fork for smth else than CGI
+must be able to serve fully static website
+clients must be able to upload files
+GET, POST, DELETE methods
+listen to multiple ports
+fcntl(fd, F_SETFL, O_NONBLOCK); ONLY FOR MACOS
+
+config file:
+- port
+- host
+first server for a host / port config will be default server
+- default error pages
+- limit client boddy size
+
