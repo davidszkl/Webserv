@@ -9,9 +9,10 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
 
-
-#define PORT 6969
+#define PORT 4269
 #define sockaddr_in struct sockaddr_in
 #define SA struct sockaddr
 
@@ -24,14 +25,8 @@ enum EXIT_ERRORS  {
 
 void chat(int sockfd) {
 	std::string buffer;
-	while (1) {
-		getline(cin, buffer);
-		if (buffer == "stop") {
-			cout << "ending connection" << endl;
-			break ;
-		}
-		send(sockfd, buffer.c_str(), buffer.length(), 0);
-	} 
+	getline(cin, buffer);
+	send(sockfd, buffer.c_str(), buffer.length(), 0);
 }
 
 int main()
@@ -47,11 +42,29 @@ int main()
 	memset(&server_addr, 0, sizeof(server_addr));
 	server_addr.sin_family		= AF_INET;
 	server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	cout << "addr = " << server_addr.sin_addr.s_addr << endl;
 	server_addr.sin_port		= htons(PORT);
+
+
+	if (fcntl(sockfd, F_SETFL, O_NONBLOCK) < 0) {
+		cout << "Couldn't set O_NONBLOCK" << endl;
+		close(sockfd);
+	}
+	cout << "O_NONBLOCK set" << endl;
+
+
+	#define pollfd struct pollfd
+	pollfd server_fd;
+	server_fd.fd = sockfd;
+	server_fd.events = POLLIN; 
+	int rval = -1;
+		while (rval <= 0) {
+			rval = poll(sockfd, 1, 1);
+		}
+	cout << "rval " << rval << endl;
 
 	if (connect(sockfd, (SA*)&server_addr, sizeof(server_addr)) < 0) {
 		cout << "Coudln't connect" << endl;
+		cout << "errno = " << errno << endl;
 		return CONNECT_ERROR;
 	}
 	cout << "Successfully connected" << endl;

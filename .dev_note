@@ -23,3 +23,6 @@ first server for a host / port config will be default server
 - default error pages
 - limit client boddy size
 
+Ressources:
+- Non-blocking I/O : https://jameshfisher.com/2017/04/05/set_socket_nonblocking/
+- sockets in general: https://www.bogotobogo.com/cplusplus/sockets_server_client.php
