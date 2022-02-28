@@ -13,26 +13,42 @@
 #include <poll.h>
 
 #define PORT 4269
-#define SA struct sockaddr
 
 using namespace std;
 
 enum EXIT_ERRORS  {
 	SOCKET_ERROR = 1,
-	CONNECT_ERROR
+	CONNECT_ERROR,
+	CLOSE_ERROR
 };
 
 void chat(int sockfd) {
-	std::string buffer;
-	getline(cin, buffer);
-	send(sockfd, buffer.c_str(), buffer.length(), 0);
+	while (1)
+	{
+		std::string buffer;
+		cerr << "Enter message to send -- empty to quit: ";
+		getline(cin, buffer);
+		if (buffer.size() == 0)
+			break;
+		cerr << "Sending message..." << endl;
+		ssize_t rval = send(sockfd, buffer.c_str(), buffer.length(), 0);
+		if (rval == -1)
+			perror("send()");
+		else if ((size_t)rval != buffer.length())
+			cerr << "send() sent " << rval << " bytes instead of "
+				<< buffer.length() << " bytes" << endl;
+		else
+			cerr << "Message sent successfully" << endl;
+	}
+	cerr << "Quitting..." << endl;
 }
 
 int main()
 {
+	cerr << "Creating socket..." << endl;
 	int sockfd = socket(AF_INET, SOCK_STREAM , 0);
 	if (sockfd < 0) {
-		cerr << "Couldn't open socket" << endl;
+		perror("socket()");
 		return SOCKET_ERROR;
 	}
 	cerr << "Successfully created socket" << endl;
@@ -41,13 +57,18 @@ int main()
 	server_addr.sin_family		= AF_INET;
 	server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	server_addr.sin_port		= htons(PORT);
-	if (connect(sockfd, (SA*)&server_addr, sizeof(server_addr)) < 0) {
-		cerr << "Coudln't connect" << endl;
-		cerr << "errno = " << errno << endl;
+	cerr << "Connecting..." << endl;
+	if (connect(sockfd, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) < 0) {
+		perror("connect()");
+		close(sockfd);
 		return CONNECT_ERROR;
 	}
 	cerr << "Successfully connected" << endl;
 	chat(sockfd);
-	close(sockfd);
+	if (-1 == close(sockfd))
+	{
+		perror("close()");
+		return CLOSE_ERROR;
+	}
 	return 0;
 }

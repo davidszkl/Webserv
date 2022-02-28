@@ -13,9 +13,6 @@
 #include <signal.h>
 
 #define PORT 4269
-#define sockaddr_in struct sockaddr_in
-#define SA struct sockaddr
-#define pollfd struct pollfd
 
 using namespace std;
 
@@ -25,8 +22,10 @@ enum EXIT_ERRORS  {
 	FLAG_SET_ERROR,
 	BIND_ERROR,
 	LISTEN_ERROR,
-	ACCEPT_ERROR
+	ACCEPT_ERROR,
+	POLL_ERROR
 };
+
 bool g_server_alive = true;
 
 void sigsig(int nbr) {
@@ -34,93 +33,101 @@ void sigsig(int nbr) {
 	g_server_alive = false;
 }
 
-void chat(int connfd, pollfd* poll_var) {
-	char buffer[100];
-	memset(buffer, 0, 100);
-	int rval = -1;
-	(void)poll_var;
-	while (rval <= 0) {
-		rval = poll(poll_var, connfd, 1000);
+void chat(pollfd* pollfds) {
+	while (true)
+	{
+		char buffer[101];
+		int rval = poll(pollfds, 1, 1000);
+		if (rval == 0) continue;
+		if (rval == -1)
+		{
+			perror("poll()");
+			break;
+		}
+		if (pollfds[0].revents & POLLIN)
+		{
+			cerr << "receiving message:\n";
+			int end = recv(pollfds[0].fd, &buffer, 100, 0);
+			if (end == -1)
+			{
+				perror("recv()");
+				break;
+			}
+			else if (end == 0)
+			{
+				cerr << "Received nothing.\n";
+				break;
+			}
+			buffer[end] = 0;
+			cout << buffer << endl;
+		}
 	}
-	cout << "rval in chat = " << rval << endl;
-	int hello = recv(connfd, &buffer, 100, 0);
-	buffer[hello] = 0;
-	cout << buffer << endl;
+	cerr << "Quitting\n";
 }
 
 int main()
 {
-	signal(SIGINT, sigsig);//TO ERASE
-	//socket()
 	int sockfd = socket(AF_INET, SOCK_STREAM , 0);
-	if (sockfd < 0) {
-		cout << "Couldn't open socket" << endl;
+	if (sockfd == -1) {
+		perror("socket():");
 		return SOCKET_ERROR;
 	}
-	cout << "Successfully created socket" << endl;
+	cerr << "Successfully created socket" << endl;
 
-	//fcntl() for O_NONBLOCK
-	int flags = fcntl(sockfd, F_GETFL);
-	if (flags < 0) {
-		cout << "Couldn't get flags" << endl;
-		close(sockfd);
-		return FLAG_GET_ERROR;
-	}
-	if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) < 0) {
-		cout << "Couldn't set O_NONBLOCK" << endl;
+	if (fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1) {
+		perror("fcntl()");
 		close(sockfd);
 		return FLAG_SET_ERROR;
 	}
-	cout << "O_NONBLOCK set" << endl;
-
-	//set server_addr struct
+	cerr << "O_NONBLOCK set" << endl;
+	
 	sockaddr_in server_addr;
 	memset(&server_addr, 0, sizeof(server_addr));
 	server_addr.sin_family		= AF_INET;
 	server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	server_addr.sin_port		= htons(PORT);
 
-	//bind socket to server_addr struct
-	if (bind(sockfd, (SA*)&server_addr, sizeof(server_addr)) < 0) {
-		cout << "Couldn't bind socket" << endl;
+	if (bind(sockfd, (sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
+		perror("bind()");
 		return BIND_ERROR;
 	}
-	cout << "Socket successfully bound" << endl;
+	cerr << "Socket successfully bound" << endl;
 
-	//make socket listen
-	if (listen(sockfd , 10) < 0) {
-		cout << "Couldn't set listen on socket " << sockfd << endl;
+	if (listen(sockfd, 10) == -1) {
+		perror("listen()");
 		close(sockfd);
 		return LISTEN_ERROR;
 	}
-	cout << "Socket " << sockfd << " listening" << endl;
-
-	//poll incoming requests for an accept()
-	sockaddr_in client_addr;
-	socklen_t len = sizeof(client_addr);
-	int connfd = 0;
-	pollfd server_fd;
-	server_fd.fd = sockfd;
-	server_fd.events = POLLIN; 
-	int rval = -1;
+	cerr << "Socket " << sockfd << " listening" << endl;
+	
 	while (g_server_alive)
 	{
-		rval = -1;
-		while (rval <= 0) {
-			rval = poll(&server_fd, 1, 1);
-		}
-		cout << "rval " << rval << endl;
-		connfd = accept(sockfd, (SA*)&client_addr, &len);
-		if (connfd < 0)
+		pollfd pollfds[10]; // 10 just for the example. only gonna  use one
+		int rval = -1;
+		pollfd pollsock;
+		pollsock.fd = sockfd;
+		pollsock.events = POLLIN;
+		while ((rval = poll(&pollsock, 1, 5000)) == 0 || (rval != -1 && !(pollsock.revents & POLLIN)))
+			cerr << "Waiting for connection..." << endl;
+		if (rval == -1)
 		{
-			cout << "Coudln't accept incoming request" << endl;
-			cout << "connfd = " << connfd << "\nerrno = " << errno << endl;
-			close(connfd);
+			perror("poll()");
+			close(sockfd);
+			return POLL_ERROR;
+		}
+		sockaddr_in client_addr;
+		socklen_t len = sizeof(client_addr);
+		pollfds[0].fd = accept(sockfd, (sockaddr*)&client_addr, &len);
+		pollfds[0].events = POLLIN;
+		if (pollfds[0].fd == -1)
+		{
+			perror("accept()");
+			close(sockfd);
 			return ACCEPT_ERROR;
 		}
-		cout << "Successfully accepted incoming request" << endl;
-		chat(connfd, &server_fd);
-		close(connfd);
+		cerr << "Successfully accepted incoming request" << endl;
+		chat(pollfds);
+		close(pollfds[0].fd);
 	}
 	close(sockfd);
 	return 0;
