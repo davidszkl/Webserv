@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <poll.h>
+#include <signal.h>
 
 #define PORT 4269
 #define sockaddr_in struct sockaddr_in
@@ -25,21 +26,30 @@ enum EXIT_ERRORS  {
 	LISTEN_ERROR,
 	ACCEPT_ERROR
 };
+bool g_server_alive = true;
+
+void sigsig(int nbr) {
+	(void)nbr;
+	g_server_alive = false;
+}
 
 void chat(int connfd, pollfd* poll_var) {
 	char buffer[100];
 	memset(buffer, 0, 100);
 	int rval = -1;
+	(void)poll_var;
 	while (rval <= 0) {
-		rval = poll(poll_var, connfd, 1);
+		rval = poll(poll_var, connfd, 1000);
 	}
 	cout << "rval in chat = " << rval << endl;
-	recv(connfd, &buffer, 100, 0);
+	int hello = recv(connfd, &buffer, 100, 0);
+	buffer[hello] = 0;
 	cout << buffer << endl;
 }
 
 int main()
 {
+	signal(SIGINT, sigsig);//TO ERASE
 	//socket()
 	int sockfd = socket(AF_INET, SOCK_STREAM , 0);
 	if (sockfd < 0) {
@@ -92,8 +102,9 @@ int main()
 	server_fd.fd = sockfd;
 	server_fd.events = POLLIN; 
 	int rval = -1;
-	while (1)
+	while (g_server_alive)
 	{
+		rval = -1;
 		while (rval <= 0) {
 			rval = poll(&server_fd, 1, 1);
 		}
@@ -110,5 +121,6 @@ int main()
 		chat(connfd, &server_fd);
 		close(connfd);
 	}
+	close(sockfd);
 	return 0;
 }

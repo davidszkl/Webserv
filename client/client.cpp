@@ -45,22 +45,23 @@ int main()
 	server_addr.sin_port		= htons(PORT);
 
 
-	if (fcntl(sockfd, F_SETFL, O_NONBLOCK) < 0) {
-		cout << "Couldn't set O_NONBLOCK" << endl;
-		close(sockfd);
-	}
-	cout << "O_NONBLOCK set" << endl;
-
+	// if (fcntl(sockfd, F_SETFL, O_NONBLOCK) < 0) {
+	// 	cout << "Couldn't set O_NONBLOCK" << endl;
+	// 	close(sockfd);
+	// }
+	// cout << "O_NONBLOCK set" << endl;
 
 	#define pollfd struct pollfd
-	pollfd server_fd;
-	server_fd.fd = sockfd;
-	server_fd.events = POLLIN; 
-	int rval = -1;
-		while (rval <= 0) {
-			rval = poll(sockfd, 1, 1);
-		}
-	cout << "rval " << rval << endl;
+	// pollfd server_fd;
+	// server_fd.fd = sockfd;
+	// server_fd.events = POLLOUT; 
+	// int rval = -1;
+	// cout << "coucou\n";
+	// 	while (rval <= 0) {
+	// 		rval = poll(&server_fd, 1, 1);
+	// 	}
+	// cout << "rval " << rval << endl;
+
 
 	if (connect(sockfd, (SA*)&server_addr, sizeof(server_addr)) < 0) {
 		cout << "Coudln't connect" << endl;
