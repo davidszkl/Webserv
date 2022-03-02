@@ -1,15 +1,17 @@
 NAME	= webserv
-CC		= c++
-FLAGS	= -Wall -Wextra -Werror -std=c++98 -g
+CC		= c++ -Wall -Wextra -Werror -std=c++98
 SRCDIR	= src
 INCDIR	= inc
 OBJDIR	= obj
 SRC		= $(shell find src/*.cpp)
-INC		= inc/main.hpp
+INC		= $(shell find inc/*.hpp)
 OBJ		= $(subst $(SRCDIR), $(OBJDIR), $(SRC:cpp=o))
 
 all: $(OBJDIR) $(OBJ)
-	$(CC) $(FLAGS) -o $(NAME) $(OBJ)
+	$(CC) -o $(NAME) $(OBJ)
+
+test: $(INCDIR)/*.hpp
+	$(CC) -o test -I$(INCDIR) src/main.cpp src/webserver.cpp src/server.cpp
 
 $(NAME): all
 
@@ -17,13 +19,14 @@ $(OBJDIR):
 	mkdir $(OBJDIR)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
-	$(CC) $(FLAGS) -I$(INCDIR) -c $< -o $@
+	$(CC) -I$(INCDIR) -c $< -o $@
 
 clean:
 	rm -f $(OBJDIR)/*
 
 fclean: clean
-	rmdir $(OBJDIR)
 	rm -f $(NAME)
+	rm -f client/a.out
+	rmdir $(OBJDIR)
 
 re: fclean all

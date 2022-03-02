@@ -1,134 +1,58 @@
-#include <errno.h>
-#include <iostream>
-#include <cstring>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <poll.h>
-#include <signal.h>
+#include "server.hpp"
 
-#define PORT 4269
-
-using namespace std;
-
-enum EXIT_ERRORS  {
-	SOCKET_ERROR = 1,
-	FLAG_GET_ERROR,
-	FLAG_SET_ERROR,
-	BIND_ERROR,
-	LISTEN_ERROR,
-	ACCEPT_ERROR,
-	POLL_ERROR
-};
-
-bool g_server_alive = true;
-
-void sigsig(int nbr) {
-	(void)nbr;
-	g_server_alive = false;
-}
-
-void chat(pollfd* pollfds) {
-	while (true)
-	{
-		char buffer[101];
-		int rval = poll(pollfds, 1, 1000);
-		if (rval == 0) continue;
-		if (rval == -1)
-		{
-			perror("poll()");
-			break;
-		}
-		if (pollfds[0].revents & POLLIN)
-		{
-			cerr << "receiving message:\n";
-			int end = recv(pollfds[0].fd, &buffer, 100, 0);
-			if (end == -1)
-			{
-				perror("recv()");
-				break;
-			}
-			else if (end == 0)
-			{
-				cerr << "Received nothing.\n";
-				break;
-			}
-			buffer[end] = 0;
-			cout << buffer << endl;
-		}
-	}
-	cerr << "Quitting\n";
-}
-
-int main()
+server::server(const int port)
 {
-	int sockfd = socket(AF_INET, SOCK_STREAM , 0);
-	if (sockfd == -1) {
-		perror("socket():");
-		return SOCKET_ERROR;
-	}
-	cerr << "Successfully created socket" << endl;
+	_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (_sockfd < 0)
+		throw server_error("socket creation failed.\nShutting down server.\n");
+	cerr << "Socket successfully created" << endl;
 
-	if (fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1) {
-		perror("fcntl()");
-		close(sockfd);
-		return FLAG_SET_ERROR;
+	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK) < 0)
+	{
+		close(_sockfd);
+		throw server_error("socket configuration failed.\nShutting down server.\n");
 	}
 	cerr << "O_NONBLOCK set" << endl;
-	
-	sockaddr_in server_addr;
-	memset(&server_addr, 0, sizeof(server_addr));
-	server_addr.sin_family		= AF_INET;
-	server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	server_addr.sin_port		= htons(PORT);
 
-	if (bind(sockfd, (sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
-		perror("bind()");
-		return BIND_ERROR;
-	}
-	cerr << "Socket successfully bound" << endl;
+	memset(&_server_addr, 0, sizeof(_server_addr));
+	_server_addr.sin_family			= AF_INET;
+	_server_addr.sin_addr.s_addr	= inet_addr("0.0.0.0");
+	_server_addr.sin_port			= htons(port);
 
-	if (listen(sockfd, 10) == -1) {
-		perror("listen()");
-		close(sockfd);
-		return LISTEN_ERROR;
-	}
-	cerr << "Socket " << sockfd << " listening" << endl;
-	
-	while (g_server_alive)
+	if (bind(	_sockfd,									\
+				reinterpret_cast<sockaddr*>(&_server_addr), \
+				sizeof(_server_addr))						\
+				< 0)
 	{
-		pollfd pollfds[10]; // 10 just for the example. only gonna  use one
-		int rval = -1;
-		pollfd pollsock;
-		pollsock.fd = sockfd;
-		pollsock.events = POLLIN;
-		while ((rval = poll(&pollsock, 1, 5000)) == 0 || (rval != -1 && !(pollsock.revents & POLLIN)))
-			cerr << "Waiting for connection..." << endl;
-		if (rval == -1)
-		{
-			perror("poll()");
-			close(sockfd);
-			return POLL_ERROR;
-		}
-		sockaddr_in client_addr;
-		socklen_t len = sizeof(client_addr);
-		pollfds[0].fd = accept(sockfd, (sockaddr*)&client_addr, &len);
-		pollfds[0].events = POLLIN;
-		if (pollfds[0].fd == -1)
-		{
-			perror("accept()");
-			close(sockfd);
-			return ACCEPT_ERROR;
-		}
-		cerr << "Successfully accepted incoming request" << endl;
-		chat(pollfds);
-		close(pollfds[0].fd);
+		close(_sockfd);
+		throw server_error("bind() failed.\nShutting down server.\n");
 	}
-	close(sockfd);
-	return 0;
+	cerr << "Socket successfully bound to :\n"						\
+		 <<	"ip-adress: " << _server_addr.sin_addr.s_addr << endl	\
+		 <<	"port :     " << ntohs(_server_addr.sin_port) << endl;
+
+	if (listen(_sockfd, MAX_ACCEPT_QUEUE) < 0)
+	{
+		close(_sockfd);
+		throw server_error("listen() failed.\nShutting down server.\n");
+	}
+	cerr << "Socket listening" << endl;
+
+	(void)_client_addr;
+	(void)_socket_len;
+	(void)_pollfd;
+	(void)_pollsock;
+	(void)_poll_rval;
+}
+
+server::~server()
+{
+	cout << "server destructor\n";
+	if (_sockfd)
+		close(_sockfd);	
+}
+
+void server::cleanup() const {
+	if (_sockfd)
+		close(_sockfd);
 }
