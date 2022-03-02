@@ -10,6 +10,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>				//close()
+#include <errno.h>
 
 #include <arpa/inet.h>			//inet_addr()
 #include <netinet/in.h>			//sockaddr_in
@@ -34,14 +35,15 @@ public:
 		server_error(const char* what) : runtime_error(what) {}
 	};
 
-	void cleanup() const;
+	void test_alive() const;
 private:
 
+	friend class webserver;
+	
 	sockaddr_in		_server_addr;
 	sockaddr_in 	_client_addr;
 	socklen_t		_socket_len;
-	pollfd			_pollfd;
-	pollfd			_pollsock;
 	int				_sockfd;
 	int				_poll_rval;
+	int				_port;
 };

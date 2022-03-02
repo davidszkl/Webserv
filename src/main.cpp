@@ -11,5 +11,12 @@ int main()
 	{
 		main_server.add_server(ports[n]);
 	}
+
+	// for (size_t n = 0; n < 3 ; n++)
+	// {
+	// 	cout << main_server._pollsock[n].fd;
+	// }
+	main_server.listen_all();
+
 	return 0;
 }
