@@ -3,7 +3,7 @@
 server::server(const int port): _port(port)
 {
 	_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	cerr << "SOCKFD IS " << _sockfd << endl;
+	cerr << "socket " << _sockfd << " created" << endl;
 	if (_sockfd < 0)
 		throw server_error("socket creation failed.\nShutting down server.\n");
 	cerr << "Socket successfully created" << endl;
@@ -50,8 +50,6 @@ server::server(const int port): _port(port)
 server::~server()
 {
 	cout << "server destructor for port " << _port << endl;
-	if (_sockfd)
-		close(_sockfd);	
 }
 
 void server::test_alive() const {

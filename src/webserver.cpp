@@ -1,5 +1,16 @@
 #include "webserver.hpp"
 
+webserver::webserver(size_t servers_count) {
+	_servers.reserve(servers_count);
+}
+
+webserver::~webserver() {
+	for (size_t n = 0; n < _servers.size(); n++) {
+		if (_servers[n]._sockfd)
+			close(_servers[n]._sockfd);
+	}
+}
+
 void webserver::add_server(int port)
 {
 	try {
@@ -15,19 +26,14 @@ void webserver::listen_all()
 	//initialize vector of pollfd that contains all server-sockets
 	for (size_t n = 0; n < _servers.size(); n++)
 	{
-		cout << "TEST " << _servers[n]._sockfd<< endl;
-		cout << "TEST " << _servers[n]._port << endl;
-
 		pollfd tmp;
 		memset(&tmp, 0, sizeof(tmp));
 		tmp.fd		= _servers[n]._sockfd;
 		tmp.events	= POLLIN;
 		_pollsock.push_back(tmp);
 	}
-	for (size_t n = 0; n < _pollsock.size(); n++) {
-		cout << _pollsock[n].fd << endl;
-	}
-	int rval = -1;
+	int rval = 0;
+	
 	while (!rval)
 	{
 		cerr << "Waiting for connection.\r";
@@ -43,10 +49,10 @@ void webserver::listen_all()
 	}
 	cerr << endl;
 	if (rval < 0)
-	{
-		cerr << "ERROR " << errno << endl;
 		throw webserver_exception("poll failed on an fd");
-	}
+	for (size_t n = 0; n < _pollsock.size(); n++)
+		cerr << _pollsock[n].revents << endl;
+	//if ((_pollfd = accept()) )
 	(void)_pollfd;
 	(void)_client_addr;
 }

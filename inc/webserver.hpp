@@ -5,8 +5,9 @@ class webserver
 {
 public:
 
-	webserver()  {};
-	~webserver() {};
+	webserver() {};
+	webserver(size_t servers_count);
+	~webserver();
 
 	void add_server(int port);
 	void listen_all();

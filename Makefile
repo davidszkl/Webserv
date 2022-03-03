@@ -11,7 +11,7 @@ all: $(OBJDIR) $(OBJ)
 	$(CC) -o $(NAME) $(OBJ)
 
 test: $(INCDIR)/*.hpp
-	$(CC) -o test -I$(INCDIR) src/main.cpp src/webserver.cpp src/server.cpp
+	$(CC) -I$(INCDIR) $(SRC) -DTEST -o $(NAME)
 
 $(NAME): all
 
