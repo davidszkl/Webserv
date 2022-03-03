@@ -5,8 +5,6 @@
 
 #include <stdexcept>
 #include <iostream>
-#include <vector>
-#include <utility>
 
 #include <fcntl.h>
 #include <unistd.h>				//close()
@@ -41,9 +39,6 @@ private:
 	friend class webserver;
 	
 	sockaddr_in		_server_addr;
-	sockaddr_in 	_client_addr;
-	socklen_t		_socket_len;
 	int				_sockfd;
-	int				_poll_rval;
 	int				_port;
 };

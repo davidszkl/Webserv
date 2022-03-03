@@ -41,15 +41,12 @@ server::server(const int port): _port(port)
 		throw server_error("listen() failed.\nShutting down server.\n");
 	}
 	cerr << "Socket listening" << endl;
-
-	(void)_client_addr;
-	(void)_socket_len;
-	(void)_poll_rval;
 }
 
 server::~server()
 {
-	cout << "server destructor for port " << _port << endl;
+	cerr	<< "server destructor for port " << _port << "\n" \
+			<< "                    socket " << _sockfd << endl;
 }
 
 void server::test_alive() const {

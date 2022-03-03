@@ -23,7 +23,7 @@ int main()
 	catch (webserver::webserver_exception &e) {
 			cerr << e.what() << endl; 
 	}
-
+	cerr << "out of listen_all" << endl;
 	return 0;
 }
 #endif
