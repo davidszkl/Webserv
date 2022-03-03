@@ -7,10 +7,11 @@ webserver::webserver(size_t servers_count): _server_alive(true) {
 webserver::~webserver() {
 	cerr << "webserv destructor" << endl;
 	for (size_t n = 0; n < _servers.size(); n++) {
-		cout << "N = " << n << endl;
 		if (_servers[n]._sockfd)
 			close(_servers[n]._sockfd);
 	}
+	if (_pollfd[0].fd)
+		close(_pollfd[0].fd);
 }
 
 void webserver::add_server(int port)
@@ -18,8 +19,9 @@ void webserver::add_server(int port)
 	try {
 		_servers.push_back(server(port));
 	}
-	catch (server::server_error& e) {
+	catch (server::server_exception& e) {
 		cerr << e.what() << endl;
+		throw ;
 	}
 }
 
@@ -73,7 +75,7 @@ void webserver::listen_all()
 		}
 		cerr << endl;
 		if (rval < 0)
-			throw webserver_exception("poll failed on an fd");
+			throw webserver_exception("Poll failed on an fd");
 		clear_errors();
 
 		int accept_fd = get_fd_ready();
@@ -82,12 +84,14 @@ void webserver::listen_all()
 									reinterpret_cast<sockaddr*>(&_client_addr),	\
 									&_socklen))									\
 									< 0)
-			throw webserver_exception("accept failed");
-		cerr << "connection on fd " << accept_fd << " accepted" << endl \
-			<< "client fd is " << _pollfd[0].fd << endl;
+			throw webserver_exception("Accept failed");
+		cerr << "Connection on fd " << accept_fd << " accepted" << endl \
+			<< "Client fd is " << _pollfd[0].fd << endl;
 
 		if (read_msg(_pollfd) < 0)
-			cerr << "message problem" << endl; // don't know how to handle that yet
+			cerr << "Message problem" << endl; // don't know how to handle that yet
+		if (close(_pollfd[0].fd) < 0)
+			throw webserver_exception("Could not close _accept.fd");
 	}
 }
 
@@ -97,17 +101,16 @@ int webserver::read_msg(pollfd* fd) {
 	{
 		char buffer[100];
 		int rval = poll(fd, 1, 1000);
-		if (rval == 0)
+		if (!rval)
 			continue;
-		if (rval == -1)
-			return -1;
-
+		if (rval < 0)
+			return rval;
 		if (fd[0].revents & POLLIN)
 		{
 			cerr << "receiving message:\n";
 			int end = recv(fd[0].fd, &buffer, 100, 0);
 			if (end == -1)
-				return - 1;
+				return -1;
 			else if (end == 0)
 			{
 				cerr << "Received nothing.\n";

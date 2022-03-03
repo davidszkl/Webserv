@@ -27,10 +27,10 @@ public:
 	server(const int port);
 	~server();
 
-	class server_error : public std::runtime_error
+	class server_exception : public std::runtime_error
 	{
 	public:
-		server_error(const char* what) : runtime_error(what) {}
+		server_exception(const char* what) : runtime_error(what) {}
 	};
 
 	void test_alive() const;

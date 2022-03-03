@@ -5,13 +5,13 @@ server::server(const int port): _port(port)
 	_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	cerr << "socket " << _sockfd << " created" << endl;
 	if (_sockfd < 0)
-		throw server_error("socket creation failed.\nShutting down server.\n");
+		throw server_exception("socket creation failed.\nShutting down server.\n");
 	cerr << "Socket successfully created" << endl;
 
 	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK) < 0)
 	{
 		close(_sockfd);
-		throw server_error("socket configuration failed.\nShutting down server.\n");
+		throw server_exception("socket configuration failed. ( fcntl() )\nShutting down server.\n");
 	}
 	cerr << "O_NONBLOCK set" << endl;
 
@@ -21,7 +21,11 @@ server::server(const int port): _port(port)
 	_server_addr.sin_port			= htons(port);
 
 	int temporary = 0;
-	setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &temporary, sizeof(int));
+	if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &temporary, sizeof(int)) < 0)
+	{
+		close(_sockfd);
+		throw server_exception("socket configuration failed. ( setsockopt() )\nShutting down server.\n");
+	}	
 
 	if (bind(	_sockfd,									\
 				reinterpret_cast<sockaddr*>(&_server_addr), \
@@ -29,7 +33,7 @@ server::server(const int port): _port(port)
 				< 0)
 	{
 		close(_sockfd);
-		throw server_error("bind() failed.\nShutting down server.\n");
+		throw server_exception("bind() failed.\nShutting down server.\n");
 	}
 	cerr << "Socket successfully bound to :\n"						\
 		 <<	"ip-adress: " << _server_addr.sin_addr.s_addr << endl	\
@@ -38,7 +42,7 @@ server::server(const int port): _port(port)
 	if (listen(_sockfd, MAX_ACCEPT_QUEUE) < 0)
 	{
 		close(_sockfd);
-		throw server_error("listen() failed.\nShutting down server.\n");
+		throw server_exception("listen() failed.\nShutting down server.\n");
 	}
 	cerr << "Socket listening" << endl;
 }
