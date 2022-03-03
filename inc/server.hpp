@@ -3,6 +3,8 @@
 //#include <sys/types.h>
 //#include <netdb.h>
 
+#include <cstring>
+
 #include <stdexcept>
 #include <iostream>
 
