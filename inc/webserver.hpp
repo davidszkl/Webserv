@@ -14,7 +14,7 @@ public:
 	void	listen_all();
 	void	clear_errors();
 	int		get_fd_ready() const;
-	int		read_msg(pollfd fd);
+	int		read_msg(pollfd* fd);
 
 	class webserver_exception : public std::runtime_error
 	{
@@ -26,7 +26,7 @@ public:
 
 	std::vector<server>	_servers;
 	std::vector<pollfd>	_pollsock;
-	pollfd				_pollfd;
+	pollfd				_pollfd[1];
 	socklen_t			_socklen;
 	sockaddr_in			_client_addr;
 	bool				_server_alive;

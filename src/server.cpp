@@ -17,7 +17,7 @@ server::server(const int port): _port(port)
 
 	memset(&_server_addr, 0, sizeof(_server_addr));
 	_server_addr.sin_family			= AF_INET;
-	_server_addr.sin_addr.s_addr	= inet_addr("0.0.0.0");
+	_server_addr.sin_addr.s_addr	= inet_addr("127.0.0.1");
 	_server_addr.sin_port			= htons(port);
 
 	int temporary = 0;

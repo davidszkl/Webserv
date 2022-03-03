@@ -78,33 +78,34 @@ void webserver::listen_all()
 
 		int accept_fd = get_fd_ready();
 		_socklen = sizeof(_client_addr);
-		if ((_pollfd.fd = accept(	accept_fd,									\
+		if ((_pollfd[0].fd = accept(	accept_fd,									\
 									reinterpret_cast<sockaddr*>(&_client_addr),	\
 									&_socklen))									\
 									< 0)
 			throw webserver_exception("accept failed");
 		cerr << "connection on fd " << accept_fd << " accepted" << endl \
-			<< "client fd is " << _pollfd.fd << endl;
+			<< "client fd is " << _pollfd[0].fd << endl;
 
 		if (read_msg(_pollfd) < 0)
 			cerr << "message problem" << endl; // don't know how to handle that yet
 	}
 }
 
-int webserver::read_msg(pollfd fd) {
+int webserver::read_msg(pollfd* fd) {
+	_request.clear();
 	while (true)
 	{
 		char buffer[100];
-		int rval = poll(&fd, 1, 1000);
+		int rval = poll(fd, 1, 1000);
 		if (rval == 0)
 			continue;
 		if (rval == -1)
 			return -1;
 
-		if (fd.revents & POLLIN)
+		if (fd[0].revents & POLLIN)
 		{
 			cerr << "receiving message:\n";
-			int end = recv(fd.fd, &buffer, 100, 0);
+			int end = recv(fd[0].fd, &buffer, 100, 0);
 			if (end == -1)
 				return - 1;
 			else if (end == 0)
@@ -114,6 +115,7 @@ int webserver::read_msg(pollfd fd) {
 			}
 			buffer[end] = 0;
 			_request += buffer;
+			cerr << _request << endl;
 		}
 	}
 	cerr << "Quitting\n";
