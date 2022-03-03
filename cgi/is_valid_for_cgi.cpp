@@ -57,8 +57,7 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
 
 /*
 	checks if http message (header + body) is valid for a cgi response.
-	full_message can be the whole http message received from the client,
-	but only the first line will be parsed (the line that contains REQUEST PATH PROTOCOL\r\n)
+	full_message is the whole http message received from the client.
 	root is the root of the server.
  */
 bool is_valid_for_cgi(const std::string& full_message, const std::string& root)
@@ -68,7 +67,7 @@ bool is_valid_for_cgi(const std::string& full_message, const std::string& root)
 	const string request = get_next_word(full_message);
 	if (request != "GET" && request != "POST")
 	{
-		logn("Request ivalid for cgi: neither GET nor POST");
+		logn("Request ivalid for cgi: request==" + request);
 		return false;
 	}
 	const string path = get_next_word(&full_message[request.length() + 1]);
@@ -78,6 +77,13 @@ bool is_valid_for_cgi(const std::string& full_message, const std::string& root)
 		logn("Path is invalid for cgi: path==" + path + " --- root==" + root);
 		return false;
 	}
+	if (request == "POST")
+	{
+		...
+		//you should check if there is a valid Content-Length and if there is not if this is multipart
+		//if there is contetn-length check if it is not too big and if multipart then check if there is end delimiter
+	}
+
 	logn("http message is valid for cgi");
 	return true;
 }
