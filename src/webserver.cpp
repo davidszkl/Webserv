@@ -22,15 +22,19 @@ webserver::~webserver() {
 		close(_pollfd[0].fd);
 }
 
-void webserver::clear_errors() {						//clear servers that got shutdown for some reason
+int webserver::clear_errors() {						//clear servers that got shutdown for some reason
 	for (size_t n = 0; n < _pollsock.size(); n++)
 	{
-		if (_pollsock[n].revents & POLLNVAL)
+		if (_pollsock[n].revents & POLLERR || \
+			_pollsock[n].revents & POLLHUP )
 		{
 			_servers.erase(_servers.begin() + n);
 			_pollsock.erase(_pollsock.begin() + n);
+			if (close(_pollsock[n].fd) < 0)
+				return -1;
 		}
 	}
+	return 0;
 }
 
 int webserver::get_fd_ready() const {					//get the first open fd out of poll()
@@ -48,7 +52,7 @@ void webserver::listen_all()
 		pollfd tmp;
 		memset(&tmp, 0, sizeof(tmp));
 		tmp.fd		= _servers[n]._sockfd;
-		tmp.events	= POLLIN;
+		tmp.events	= POLLIN | POLLOUT;
 		_pollsock.push_back(tmp);
 	}
 
@@ -73,19 +77,26 @@ void webserver::listen_all()
 			throw webserver_exception("Poll failed on an fd");
 
 		int accept_fd = get_fd_ready();
-		if ((_pollfd[0].fd = accept(	accept_fd,								\
+		if ((_pollfd[0].fd = accept(accept_fd,								\
 									reinterpret_cast<sockaddr*>(&_client_addr),	\
 									&_socklen))									\
 									< 0)
 			throw webserver_exception("Accept failed");
 		cerr << "Connection on fd " << accept_fd << " accepted" << endl \
-			<< "Client fd is " << _pollfd[0].fd << endl;
+			 << "Connection fd is " << _pollfd[0].fd << endl;
 
-		if (read_msg(_pollfd) < 0)
-			cerr << "Message problem" << endl; // don't know how to handle that yet
-		clear_errors();
+		int read_rval = read_msg(_pollfd);
+		if (read_rval == -1) {
+			cerr << "Fatal problem occured during connection with " << accept_fd << endl;
+			throw webserver_exception("Poll fatal error");
+		}
+		if (read_rval == -2) {
+			cerr << "Problem occured during connection with " << accept_fd << endl;
+		}
 		if (close(_pollfd[0].fd) < 0)
-			throw webserver_exception("Could not close _accept.fd");
+			throw webserver_exception("Could not close connection fd");
+		if (clear_errors() < 0)
+			throw webserver_exception("Could not clear bad fd");
 	}
 	cerr << "Stop message received.\nShutting down server." << endl;
 }
@@ -99,7 +110,10 @@ int webserver::read_msg(pollfd* fd) {
 		while (!rval)
 			rval = poll(fd, 1, 1000);
 		if (rval < 0)
-			return rval;
+			return -1;
+		if (fd[0].revents & POLLERR || 							\
+			(fd[0].revents & POLLHUP && !(fd[0].revents & POLLIN)))
+			return -2;
 		if (fd[0].revents & POLLIN)
 		{
 			cerr << "receiving message:\n";

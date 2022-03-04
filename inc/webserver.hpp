@@ -11,7 +11,7 @@ public:
 	~webserver();
 
 	void	listen_all();
-	void	clear_errors();
+	int		clear_errors();
 	int		get_fd_ready() const;
 	int		read_msg(pollfd* fd);
 
