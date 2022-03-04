@@ -7,10 +7,9 @@ class webserver
 public:
 
 	webserver() {};
-	webserver(size_t servers_count);
+	webserver(std::vector<int> config);
 	~webserver();
 
-	void	add_server(int port);
 	void	listen_all();
 	void	clear_errors();
 	int		get_fd_ready() const;
@@ -26,9 +25,9 @@ public:
 
 	std::vector<server>	_servers;
 	std::vector<pollfd>	_pollsock;
+	std::string			_request;
+	sockaddr_in			_client_addr;
 	pollfd				_pollfd[1];
 	socklen_t			_socklen;
-	sockaddr_in			_client_addr;
 	bool				_server_alive;
-	std::string			_request;
 };

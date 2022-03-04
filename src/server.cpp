@@ -3,10 +3,9 @@
 server::server(const int port): _port(port)
 {
 	_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	cerr << "socket " << _sockfd << " created" << endl;
 	if (_sockfd < 0)
 		throw server_exception("socket creation failed.\nShutting down server.\n");
-	cerr << "Socket successfully created" << endl;
+	cerr << "Socket " << _sockfd << " successfully created" << endl;
 
 	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK) < 0)
 	{
