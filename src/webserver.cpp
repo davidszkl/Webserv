@@ -15,11 +15,17 @@ webserver::webserver(std::vector<int> config):	_socklen(sizeof(_client_addr)),
 webserver::~webserver() {
 	cerr << "webserv destructor" << endl;
 	for (size_t n = 0; n < _servers.size(); n++) {		//~webserv() handles closing of server sockets because
-		if (_servers[n]._sockfd)						//vector calls server destructor all the time
+		if (_servers[n]._sockfd)
+		{
+			cerr << "CLOSING FD " << _servers[n]._sockfd << endl;					//vector calls server destructor all the time
 			close(_servers[n]._sockfd);
+		}
 	}
 	if (_pollfd[0].fd)
+	{
+		cerr << "CLOSING POLLFD\n";
 		close(_pollfd[0].fd);
+	}
 }
 
 int webserver::clear_errors() {						//clear servers that got shutdown for some reason
@@ -93,6 +99,12 @@ void webserver::listen_all()
 		if (read_rval == -2) {
 			cerr << "Problem occured during connection with " << accept_fd << endl;
 		}
+		if (request_handler(_pollfd[0]) < 0)
+		{
+			cerr << "Request could not be handled" << endl	\
+				 << "Short request: " << endl				\
+				 << _short_request << endl;
+		}
 		if (close(_pollfd[0].fd) < 0)
 			throw webserver_exception("Could not close connection fd");
 		if (clear_errors() < 0)
@@ -109,6 +121,7 @@ int webserver::read_msg(pollfd* fd) {
 		int rval = 0;
 		while (!rval)
 			rval = poll(fd, 1, 1000);
+		poll_result(fd[0]);
 		if (rval < 0)
 			return -1;
 		if (fd[0].revents & POLLERR || 							\
@@ -120,18 +133,88 @@ int webserver::read_msg(pollfd* fd) {
 			int end = recv(fd[0].fd, &buffer, 100, 0);
 			if (end < 0)
 				return -1;
-			else if (!end)
-			{
+			else if (!end) {
 				cerr << "Received nothing.\n";
 				break;
 			}
+			cerr << "END = " << end << endl;
+			cerr << "ERROR =" << (int)buffer[end] << endl;
 			buffer[end] = '\0';
+			cerr << "ERROR =" << (int)buffer[end] << endl;
 			_request += buffer;
-			cerr << _request << endl;
+			if (buffer[end - 1] == '\n' && buffer[end - 2] == '\r')
+				break;
 		}
 	}
 	if (_request == "stop")
 		_server_alive = false;
 	cerr << "Quitting\n";
+	return 0;
+}
+
+int	webserver::request_handler(const pollfd & fd) {
+	_short_request = my_get_line(_request);
+	init_request();
+	if (_http_request._uri == "/stop") {
+		_server_alive = false;
+		return 0;
+	}
+	//size_t n = 0;
+	// for (; _http_request._method[n]; n++)
+	// 	cerr << _http_request._method[n] << " " << (int)_http_request._method[n] << endl;
+	// cerr << _http_request._method[n] << (int)_http_request._method[n] << endl;
+	cerr << (_http_request._method == "get") << endl;
+	cerr << (_http_request._method == std::string("get")) << endl;
+	if (!strcmp(_http_request._method.c_str(), "GET"))
+		handle_GET(fd);
+	else if (!strcmp(_http_request._method.c_str(), "POST"))
+		handle_POST(fd);
+	else if (!strcmp(_http_request._method.c_str(), "DELETE"))
+		handle_DELETE(fd); 
+	else
+		return -1;
+	return 0;
+}
+
+void webserver::init_request() {
+	std::stringstream ss(_short_request);
+	ss >> _http_request._method;
+	cerr << "_http_request._method: " << _http_request._method << endl;
+	ss >> _http_request._uri;
+	cerr << "_http_request._uri: " << _http_request._uri << endl;
+	ss >> _http_request._version;
+	cerr << "_http_request._version: " << _http_request._version << endl;
+}
+
+void poll_result(const pollfd & fd) {
+	cout << "events : "
+		 << (fd.revents & POLLIN 	? "POLLIN"	 : "")	<< " "	\
+		 << (fd.revents & POLLHUP	? "POLLHUP"	 : "")	<< " "	\
+		 << (fd.revents & POLLERR	? "POLLERR"	 : "")	<< " "	\
+		 << (fd.revents & POLLPRI	? "POLLPRI"	 : "")	<< " "	\
+		 << (fd.revents & POLLOUT	? "POLLOUT"	 : "")	<< " "	\
+		 << (fd.revents & POLLNVAL	? "POLLNVAL" : "")	<< endl;
+}
+
+std::string my_get_line(std::string from ) {
+	std::string to;
+	for (size_t n = 0; from[n] && from[n] != '\n'; n++)
+		to += from[n];
+	to += '\0';
+	return to;
+}
+
+int		webserver::handle_GET(const pollfd &fd) {
+	cerr << "GET handler for " << fd.fd << endl;
+	return 0;
+}
+
+int		webserver::handle_POST(const pollfd &fd) {
+	cerr << "POST handler for " << fd.fd << endl;
+	return 0;
+}
+
+int		webserver::handle_DELETE(const pollfd &fd) {
+	cerr << "DELETE handler for " << fd.fd << endl;
 	return 0;
 }

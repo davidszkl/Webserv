@@ -4,13 +4,13 @@ server::server(const int port): _port(port)
 {
 	_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_sockfd < 0)
-		throw server_exception("socket creation failed.\nShutting down server.\n");
-	cerr << "Socket " << _sockfd << " successfully created" << endl;
+		throw server_exception("Socket creation failed.\nShutting down server.\n");
+	cerr << "Socket " << _sockfd << " Successfully created" << endl;
 
 	if (fcntl(_sockfd, F_SETFL, O_NONBLOCK) < 0)
 	{
 		close(_sockfd);
-		throw server_exception("socket configuration failed. ( fcntl() )\nShutting down server.\n");
+		throw server_exception("Socket configuration failed. ( fcntl() )\nShutting down server.\n");
 	}
 	cerr << "O_NONBLOCK set" << endl;
 
@@ -23,8 +23,16 @@ server::server(const int port): _port(port)
 	if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &temporary, sizeof(int)) < 0)
 	{
 		close(_sockfd);
-		throw server_exception("socket configuration failed. ( setsockopt() )\nShutting down server.\n");
-	}	
+		throw server_exception("Socket configuration failed. ( setsockopt() )\nShutting down server.\n");
+	}
+	cerr << "SO_REUSEADDR set" << endl;
+
+	if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEPORT, &temporary, sizeof(int)) < 0)
+	{
+		close(_sockfd);
+		throw server_exception("Socket configuration failed. ( setsockopt() )\nShutting down server.\n");
+	}
+	cerr << "SO_REUSEPORT set" << endl;
 
 	if (bind(	_sockfd,									\
 				reinterpret_cast<sockaddr*>(&_server_addr), \

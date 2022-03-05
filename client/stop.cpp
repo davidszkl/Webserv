@@ -22,25 +22,8 @@ enum EXIT_ERRORS  {
 	CLOSE_ERROR
 };
 
-void chat(int sockfd) {
-	while (1)
-	{
-		std::string buffer;
-		cerr << "Enter message to send -- empty to quit: ";
-		getline(cin, buffer);
-		if (buffer.size() == 0)
-			break;
-		cerr << "Sending message..." << endl;
-		ssize_t rval = send(sockfd, buffer.c_str(), buffer.length(), 0);
-		if (rval == -1)
-			perror("send()");
-		else if ((size_t)rval != buffer.length())
-			cerr << "send() sent " << rval << " bytes instead of "
-				<< buffer.length() << " bytes" << endl;
-		else
-			cerr << "Message sent successfully" << endl;
-	}
-	cerr << "Quitting..." << endl;
+void send_stop(int sockfd) {
+	send(sockfd, "stop" , 4, 0);
 }
 
 int main()
@@ -64,7 +47,7 @@ int main()
 		return CONNECT_ERROR;
 	}
 	cerr << "Successfully connected" << endl;
-	chat(sockfd);
+	send_stop(sockfd);
 	if (-1 == close(sockfd))
 	{
 		perror("close()");

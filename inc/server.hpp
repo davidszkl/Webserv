@@ -5,6 +5,7 @@
 
 #include <stdexcept>
 #include <iostream>
+#include <sstream>
 
 #include <fcntl.h>
 #include <unistd.h>				//close()
