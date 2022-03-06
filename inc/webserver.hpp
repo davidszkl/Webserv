@@ -62,11 +62,13 @@ public:
 	int		clear_errors();
 	int		get_fd_ready() const;
 	int		read_msg(pollfd* fd);
-	int		request_handler(const pollfd & fd);
+	void	request_handler(const pollfd & fd);
 	void	init_request();
 	int		handle_GET(const pollfd &fd);
 	int		handle_POST(const pollfd &fd);
 	int		handle_DELETE(const pollfd &fd);
+	void	send_error_code(const pollfd &fd);
+	std::string get_code_description(int code);
 
 	class webserver_exception : public std::runtime_error
 	{
@@ -92,7 +94,9 @@ public:
 	socklen_t			_socklen;
 	bool				_server_alive;
 	http_request		_http_request;
+	int					_error_response;
 };
 
 std::string my_get_line(std::string from );
 void 		poll_result(const pollfd & fd);
+std::string i_to_str(int nbr);

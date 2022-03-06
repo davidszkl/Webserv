@@ -99,11 +99,14 @@ void webserver::listen_all()
 		if (read_rval == -2) {
 			cerr << "Problem occured during connection with " << accept_fd << endl;
 		}
-		if (request_handler(_pollfd[0]) < 0)
-		{
-			cerr << "Request could not be handled" << endl	\
-				 << "Short request: " << endl				\
+		try {
+			request_handler(_pollfd[0]);
+		}
+		catch (webserver_exception & e) {
+			cerr << e.what() << endl			\
+				 << "Short request: " << endl	\
 				 << _short_request << endl;
+			send_error_code(_pollfd[0]);
 		}
 		if (close(_pollfd[0].fd) < 0)
 			throw webserver_exception("Could not close connection fd");
@@ -111,6 +114,81 @@ void webserver::listen_all()
 			throw webserver_exception("Could not clear bad fd");
 	}
 	cerr << "Stop message received.\nShutting down server." << endl;
+}
+
+void webserver::request_handler(const pollfd & fd) {
+	_short_request = my_get_line(_request);
+	init_request();
+	if (_http_request._uri == "/stop") {
+		_server_alive = false;
+		return ;
+	}
+	if (!_http_request._method.size() || !_http_request._uri.size() || !_http_request._version.size()) {
+		_error_response = BAD_REQUEST;
+		throw webserver_exception("Request line incomplete");
+	}
+	if (_http_request._method		== "GET")
+		handle_GET(fd);
+	else if (_http_request._method	== "POST")
+		handle_POST(fd);
+	else if (_http_request._method	== "DELETE")
+		handle_DELETE(fd); 
+	else {
+		_error_response = NOT_IMPLEMENTED;
+		throw webserver_exception("Unknown method");
+	}
+	return ;
+}
+
+void webserver::init_request() {
+	std::stringstream ss(_short_request);
+	ss >> _http_request._method;
+	cerr << "_http_request._method: " << _http_request._method << endl;
+	ss >> _http_request._uri;
+	cerr << "_http_request._uri: " << _http_request._uri << endl;
+	ss >> _http_request._version;
+	cerr << "_http_request._version: " << _http_request._version << endl;
+}
+
+void poll_result(const pollfd & fd) {
+	cout << "events : "
+		 << (fd.revents & POLLIN 	? "POLLIN"	 : "")	<< " "	\
+		 << (fd.revents & POLLHUP	? "POLLHUP"	 : "")	<< " "	\
+		 << (fd.revents & POLLERR	? "POLLERR"	 : "")	<< " "	\
+		 << (fd.revents & POLLPRI	? "POLLPRI"	 : "")	<< " "	\
+		 << (fd.revents & POLLOUT	? "POLLOUT"	 : "")	<< " "	\
+		 << (fd.revents & POLLNVAL	? "POLLNVAL" : "")	<< endl;
+}
+
+std::string my_get_line(std::string from ) {
+	std::string to;
+	for (size_t n = 0; from[n] && from[n] != '\n'; n++)
+		to += from[n];
+	return to;
+}
+
+int	webserver::handle_GET(const pollfd &fd) {
+	cerr << "GET handler for " << fd.fd << endl;
+
+	return 0;
+}
+
+int	webserver::handle_POST(const pollfd &fd) {
+	cerr << "POST handler for " << fd.fd << endl;
+	return 0;
+}
+
+int	webserver::handle_DELETE(const pollfd &fd) {
+	cerr << "DELETE handler for " << fd.fd << endl;
+	return 0;
+}
+
+void webserver::send_error_code(const pollfd &fd) {
+	std::string http_response;
+	http_response += "HTTP/1.1 ";
+	http_response += i_to_str(_error_response);
+	http_response += get_code_description(_error_response);
+	send(fd.fd, http_response.c_str(), http_response.size(), 0);
 }
 
 int webserver::read_msg(pollfd* fd) {
@@ -149,68 +227,88 @@ int webserver::read_msg(pollfd* fd) {
 	return 0;
 }
 
-int	webserver::request_handler(const pollfd & fd) {
-	_short_request = my_get_line(_request);
-	init_request();
-	if (_http_request._uri == "/stop") {
-		_server_alive = false;
-		return 0;
+std::string i_to_str(int nbr) {
+	std::stringstream ss;
+    std::string s;
+    ss << nbr;
+    s = ss.str();
+
+    return s;
+}
+
+std::string webserver::get_code_description(int code) {
+	switch (code) {
+		case OK :
+			return "OK";
+		case CREATED :
+			return "CREATED";
+		case ACCEPTED :
+			return "ACCEPTED";
+		case NO_CONTENT :
+			return "NO_CONTENT";
+		case RESET_CONTENT :
+			return "RESET_CONTENT";
+		case PARTIAL_CONTENT :
+			return "PARTIAL_CONTENT";
+		case MULTIPLE_CHOICES :
+			return "MULTIPLE_CHOICES";
+		case MOVED_PERMANENTLY :
+			return "MOVED_PERMANENTLY";
+		case FOUND :
+			return "FOUND";
+		case SEE_OTHER :
+			return "SEE_OTHER";
+		case NOT_MODIFIED :
+			return "NOT_MODIFIED";
+		case USE_PROXY :
+			return "USE_PROXY";
+		case TEMPORARY_REDIRECT :
+			return "TEMPORARY_REDIRECT";
+		case BAD_REQUEST :
+			return "BAD_REQUEST";
+		case UNAUTHORIZED :
+			return "UNAUTHORIZED";
+		case FORBIDDEN :
+			return "FORBIDDEN";
+		case NOT_FOUND :
+			return "NOT_FOUND";
+		case METHOD_NOT_ALLOWED :
+			return "METHOD_NOT_ALLOWED";
+		case NOT_ACCEPTABLE :
+			return "NOT_ACCEPTABLE";
+		case PROXY_AUTHENTICATION_REQUIRED :
+			return "PROXY_AUTHENTICATION_REQUIRED";
+		case REQUEST_TIMEOUT :
+			return "REQUEST_TIMEOUT";
+		case CONFLICT :
+			return "CONFLICT";
+		case GONE :
+			return "GONE";
+		case LENGTH_REQUIRED :
+			return "LENGTH_REQUIRED";
+		case PRECONDITION_FAILED :
+			return "PRECONDITION_FAILED";
+		case REQUEST_ENTITY_TOO_LARGE :
+			return "REQUEST_ENTITY_TOO_LARGE";
+		case REQUEST_URI_TOO_LONG :
+			return "REQUEST_URI_TOO_LONG";
+		case UNSUPPORTED_MEDIA_TYPE :
+			return "UNSUPPORTED_MEDIA_TYPE";
+		case REQUESTED_RANGE_NOT_SATISFIABLE :
+			return "REQUESTED_RANGE_NOT_SATISFIABLE";
+		case EXPECTATION_FAILED :
+			return "EXPECTATION_FAILED";
+		case INTERNAL_SERVER_ERROR :
+			return "INTERNAL_SERVER_ERROR";
+		case NOT_IMPLEMENTED :
+			return "NOT_IMPLEMENTED";
+		case BAD_GATEWAY :
+			return "BAD_GATEWAY";
+		case SERVICE_UNAVAILABLE :
+			return "SERVICE_UNAVAILABLE";
+		case GATEWAY_TIMEOUT :
+			return "GATEWAY_TIMEOUT";
+		default :
+			return "";
 	}
-	//size_t n = 0;
-	// for (; _http_request._method[n]; n++)
-	// 	cerr << _http_request._method[n] << " " << (int)_http_request._method[n] << endl;
-	// cerr << _http_request._method[n] << (int)_http_request._method[n] << endl;
-	cerr << (_http_request._method == "GET") << endl;
-	cerr << (_http_request._method == std::string("GET")) << endl;
-	if (!strcmp(_http_request._method.c_str(), "GET"))
-		handle_GET(fd);
-	else if (!strcmp(_http_request._method.c_str(), "POST"))
-		handle_POST(fd);
-	else if (!strcmp(_http_request._method.c_str(), "DELETE"))
-		handle_DELETE(fd); 
-	else
-		return -1;
-	return 0;
-}
-
-void webserver::init_request() {
-	std::stringstream ss(_short_request);
-	ss >> _http_request._method;
-	cerr << "_http_request._method: " << _http_request._method << endl;
-	ss >> _http_request._uri;
-	cerr << "_http_request._uri: " << _http_request._uri << endl;
-	ss >> _http_request._version;
-	cerr << "_http_request._version: " << _http_request._version << endl;
-}
-
-void poll_result(const pollfd & fd) {
-	cout << "events : "
-		 << (fd.revents & POLLIN 	? "POLLIN"	 : "")	<< " "	\
-		 << (fd.revents & POLLHUP	? "POLLHUP"	 : "")	<< " "	\
-		 << (fd.revents & POLLERR	? "POLLERR"	 : "")	<< " "	\
-		 << (fd.revents & POLLPRI	? "POLLPRI"	 : "")	<< " "	\
-		 << (fd.revents & POLLOUT	? "POLLOUT"	 : "")	<< " "	\
-		 << (fd.revents & POLLNVAL	? "POLLNVAL" : "")	<< endl;
-}
-
-std::string my_get_line(std::string from ) {
-	std::string to;
-	for (size_t n = 0; from[n] && from[n] != '\n'; n++)
-		to += from[n];
-	return to;
-}
-
-int		webserver::handle_GET(const pollfd &fd) {
-	cerr << "GET handler for " << fd.fd << endl;
-	return 0;
-}
-
-int		webserver::handle_POST(const pollfd &fd) {
-	cerr << "POST handler for " << fd.fd << endl;
-	return 0;
-}
-
-int		webserver::handle_DELETE(const pollfd &fd) {
-	cerr << "DELETE handler for " << fd.fd << endl;
-	return 0;
 }
