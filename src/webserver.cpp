@@ -137,10 +137,7 @@ int webserver::read_msg(pollfd* fd) {
 				cerr << "Received nothing.\n";
 				break;
 			}
-			cerr << "END = " << end << endl;
-			cerr << "ERROR =" << (int)buffer[end] << endl;
 			buffer[end] = '\0';
-			cerr << "ERROR =" << (int)buffer[end] << endl;
 			_request += buffer;
 			if (buffer[end - 1] == '\n' && buffer[end - 2] == '\r')
 				break;
@@ -163,8 +160,8 @@ int	webserver::request_handler(const pollfd & fd) {
 	// for (; _http_request._method[n]; n++)
 	// 	cerr << _http_request._method[n] << " " << (int)_http_request._method[n] << endl;
 	// cerr << _http_request._method[n] << (int)_http_request._method[n] << endl;
-	cerr << (_http_request._method == "get") << endl;
-	cerr << (_http_request._method == std::string("get")) << endl;
+	cerr << (_http_request._method == "GET") << endl;
+	cerr << (_http_request._method == std::string("GET")) << endl;
 	if (!strcmp(_http_request._method.c_str(), "GET"))
 		handle_GET(fd);
 	else if (!strcmp(_http_request._method.c_str(), "POST"))
@@ -200,7 +197,6 @@ std::string my_get_line(std::string from ) {
 	std::string to;
 	for (size_t n = 0; from[n] && from[n] != '\n'; n++)
 		to += from[n];
-	to += '\0';
 	return to;
 }
 
