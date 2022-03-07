@@ -1,6 +1,11 @@
 #include "cgi.hpp"
 #include "debug.hpp"
 #include <unistd.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <stdio.h>
+
+char	**ft_split(char const *s, char c);
 
 /*
 	e.g.: if s == "hello ok" return "hello"
@@ -35,6 +40,13 @@ static bool is_exec(const std::string& file_path, const std::string& root)
 	return access((root + file_path).c_str(), X_OK) != -1;
 }
 
+static void ft_freetab(const char **tab)
+{
+	for (std::size_t i = 0; tab[i]; i++)
+		free((void *)tab[i]);
+	free(tab);
+}
+
 /*
 	checks if there is a valid executable .py file in the header path.
 	return std::string::npos if nothnig found, otherwise index of character after the 'y' in the .py
@@ -53,20 +65,82 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
 	return std::string::npos;
 }
 
+//if post && define_query ->  pass it to stdin
+//if get && define query -> pass it as env
+//if define path -> pass it as env
+static void setup_and_exec(int output_fd,
+		std::string request,
+		bool define_query,
+		std::string query_string,
+		bool define_path,
+		std::string path_info,
+		std::string exec_path)
+{
+	std::string command = "/usr/bin/env";
+	std::string exec_path2 = exec_path;
+	while (exec_path2[exec_path2.length() - 1] != '/')
+		exec_path2 = exec_path2.substr(0, exec_path2.length() - 1);
+	command += " --chdir=" + exec_path2;
+	if (define_query && request == "GET")
+		command += " QUERY_STRING=" + query_string;
+	if (define_path)
+		command += " PATH_INFO=" + path_info;
+	command += " REQUEST_METHOD=" + request;
+	command += " " + exec_path;
+	int pipefds[2];
+	if (pipe(pipefds) == -1)
+	{
+		perror("pipe()");
+		return;
+	}
+	pid_t pid = fork();
+	if (pid == -1) {
+		perror("fork()");
+			return;
+	} else if (pid == 0) {	
+		close(pipefds[1]);
+		if (-1 == dup2(pipefds[0], 0)) {
+			close(pipefds[0]);
+			close(output_fd);
+			perror("dup2()"); exit(1);
+		}
+		close(pipefds[0]);
+		if (-1 == dup2(output_fd, 1))   {
+			if (output_fd != 1) close(output_fd);
+			perror("dup2()"); exit(1);
+		}
+		if (output_fd != 1) close(output_fd);
+		const char **split = const_cast<const char**>(ft_split(command.c_str(), ' '));
+		if (!split) { perror("ft_split()"); exit(1); }
+		logn("executing " + exec_path + ":");
+		execve(split[0], (char * const *)split, 0);
+		ft_freetab(split);
+		perror("execve()");
+		exit(1);
+	}
+	if (request == "POST" && define_query)
+		write(pipefds[1], query_string.c_str(), query_string.length());
+	close(pipefds[0]);
+	close(pipefds[1]);
+	waitpid(pid, 0, 0);
+	return;
+}
+
 /*
 	This function needs the first line of the http header and the body, so pass the full http message in full_message.
 	root is the root of the server.
-	ouput_fd is where the python script will write its ouput.
+	output_fd is where the python script will write its ouput.
 	The http message should be valid! (is_valid_for_cgi must have returned true with the same message/root)
  */
-void execute_cgi(const std::string& full_message, const std::string& root, int ouput_fd)
+void execute_cgi(const std::string& full_message, std::string root, int output_fd)
 {
+	if (root[root.length() -1] != '/') root += '/';
 	using std::string;
 	logn("Executing cgi...");
 	const string request = get_next_word(full_message);
 	const string path = get_next_word(&full_message[request.length() + 1]);
 	const std::size_t path_end = get_end_path(path, root);
-	const std::string exec_path = root + path.substr(0, path_end);
+	const std::string exec_path = root + path.substr(path[0] == '/', path_end - (path[0] == '/'));
 	logn("path to cgi executable==" + exec_path);
 	logn("cgi request==" + request);
 	std::size_t qpos = path_end;
@@ -82,15 +156,20 @@ void execute_cgi(const std::string& full_message, const std::string& root, int o
 		query_string = path.substr(qpos + 1, string::npos);
 		define_query = true;
 	}
-	else if (request == "POST" && has_body(full_message)) //shoudl check if Content-Length is not zero(if not multipart) and if there is something after the \r\n\r\n
+	else if (request == "POST")
 	{
-		query_string = get_query(full_message); //should unchunck it if multipart
-		define_query = true;
+		const std::size_t content_length = atoi(get_header_info(full_message, "Content-Length").c_str());
+		if (content_length != 0)
+		{
+			define_query = true;
+			query_string = full_message.substr(full_message.find("\r\n\r\n") + 4, content_length);
+		}
 	}
-//if post && define_query ->  pass it to stdin
-//if get && define query -> pass it as env
-//if define path -> pass it as env
-//gl
+	if (define_query == true)
+		logn("QUERY_STRING==" + query_string);
+	else
+		logn("No QUERY_STRING will be defined/passed to stdin");
+	setup_and_exec(output_fd, request, define_query, query_string, define_path, path_info, exec_path);
 }
 
 

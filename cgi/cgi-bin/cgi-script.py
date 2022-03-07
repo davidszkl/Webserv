@@ -10,6 +10,7 @@ import os, cgitb, sys
 
 cgitb.enable()
 
+print('HTTP/1.1 200 OK\r')
 print('Content-type:text/html\r')
 print('\r')
 

@@ -5,8 +5,10 @@
 	checks if http message (header + body) is valid for a cgi response.
 	full_message is the whole http message received from the client.
 	root is the root of the server.
+	Return 1 on success, 0 on failure and 415 if valid but unsupported Content-Type;
+	If return 415, you should send 415 error page
  */
-bool is_valid_for_cgi(const std::string& full_message, const std::string& root);
+int is_valid_for_cgi(const std::string& full_message, std::string root);
 
 /*
 	This function needs the first line of the http header and the body, so pass the full http message in full_message.
@@ -14,5 +16,12 @@ bool is_valid_for_cgi(const std::string& full_message, const std::string& root);
 	ouput_fd is where the python script will write its ouput.
 	The http message should be valid! (is_valid_for_cgi must have returned true with the same message/root)
  */
-void execute_cgi(const std::string& full_message, const std::string& root, int ouput_fd);
+void execute_cgi(const std::string& full_message, std::string root, int ouput_fd);
+
+/*
+header must end with \r\n\r\n. Everything after that is ignored.
+if there is Content-Length: 200 in the header and name=="Content-Length"m then returns "200"
+returns "" if not found
+ */
+std::string get_header_info(const std::string& header, const std::string& name);
 

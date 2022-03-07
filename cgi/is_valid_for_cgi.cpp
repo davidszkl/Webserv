@@ -3,6 +3,7 @@
 
 #include <exception>
 #include <unistd.h>
+#include <stdlib.h>
 
 /*
 	e.g.: if s == "hello ok" return "hello"
@@ -34,7 +35,13 @@ static bool is_py(const std::string file)
 
 static bool is_exec(const std::string& file_path, const std::string& root)
 {
-	return access((root + file_path).c_str(), X_OK) != -1;
+
+	const bool b = (access((root + file_path).c_str(), X_OK) != -1);
+	if (b)
+		logn(root + file_path + " is an executable file");
+	else
+		logn(root + file_path + " is not an executable file");
+	return b;
 }
 
 /*
@@ -59,12 +66,20 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
 	checks if http message (header + body) is valid for a cgi response.
 	full_message is the whole http message received from the client.
 	root is the root of the server.
+	Return 1 on success, 0 on failure and 415 if valid but unsupported Content-Type;
+	If return 415, you should send 415 error page
  */
-bool is_valid_for_cgi(const std::string& full_message, const std::string& root)
+int is_valid_for_cgi(const std::string& full_message, std::string root)
 {
+	if (root[root.length() -1] != '/') root += '/';
 	logn("Checking if message is valid for cgi...");
 	using std::string;
 	const string request = get_next_word(full_message);
+	if (0 != access("/usr/bin/env", X_OK))
+	{
+		logn("/usr/bin/env is not executable. Python CGI needs it in sha-bang. is_valid_for _cgi returned false");
+		return false;
+	}
 	if (request != "GET" && request != "POST")
 	{
 		logn("Request ivalid for cgi: request==" + request);
@@ -79,11 +94,33 @@ bool is_valid_for_cgi(const std::string& full_message, const std::string& root)
 	}
 	if (request == "POST")
 	{
-		...
-		//you should check if there is a valid Content-Length and if there is not if this is multipart
-		//if there is contetn-length check if it is not too big and if multipart then check if there is end delimiter
+		std::string content_type = get_header_info(full_message, "Content-Type");
+		if (content_type != "application/x-www-form-urlencoded")
+		{
+			logn("CGI does not support this Content-Type: " + content_type);
+			logn("is_valid_for_cgi returned 415");
+			return 415;
+		}
+		std::string content_length = get_header_info(full_message, "Content-Length");
+		if (content_length == "")
+		{
+			logn("No Content-Length in header. is_valid_for cgi is returning false");
+			return false;
+		}
+		std::size_t cl;
+		try{
+			cl = std::atoi(content_length.c_str());
+		} catch(...)
+		{
+			logn(content_length + " is an invalid Content-Legnth. is_valid_for cgi returns false");
+			return false;
+		}
+		if (full_message.find("\r\n\r\n") + cl + 4 >= full_message.length())
+		{
+			logn("Content-Length too large is_valid_for_cgi returns false");
+			return false;
+		}
 	}
-
 	logn("http message is valid for cgi");
 	return true;
 }
