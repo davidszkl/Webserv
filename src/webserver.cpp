@@ -1,7 +1,18 @@
 #include "webserver.hpp"
 
-webserver::webserver(std::vector<int> config):	_socklen(sizeof(_client_addr)),
-												_server_alive(true) {
+//TO_ERASE
+void server_shutdown(int signbr) {
+	(void)signbr;
+	_server_alive = false;
+}
+//TO_ERASE
+
+webserver::webserver(std::vector<int> config):	_socklen(sizeof(_client_addr)), _response_code(404)
+{
+	signal(SIGINT, &server_shutdown);
+	_server_alive = true;
+	memset(&_pollfd, 0, sizeof(_pollfd));
+	_pollfd[0].events	= POLLIN | POLLOUT;
 	try {
 		_servers.reserve(config.size());				//don't call all destructors every time a server is added
 		for (size_t n = 0; n < config.size(); n++)
@@ -94,10 +105,14 @@ void webserver::listen_all()
 		int read_rval = read_msg(_pollfd);
 		if (read_rval == -1) {
 			cerr << "Fatal problem occured during connection with " << accept_fd << endl;
+			cerr << "ERRNO " << errno << endl;
 			throw webserver_exception("Poll fatal error");
 		}
 		if (read_rval == -2) {
 			cerr << "Problem occured during connection with " << accept_fd << endl;
+		}
+		if (read_rval == -3) {
+			cerr << "Problem occured with recv() " << accept_fd << endl;
 		}
 		try {
 			request_handler(_pollfd[0]);
@@ -124,7 +139,7 @@ void webserver::request_handler(const pollfd & fd) {
 		return ;
 	}
 	if (!_http_request._method.size() || !_http_request._uri.size() || !_http_request._version.size()) {
-		_error_response = BAD_REQUEST;
+		_response_code = BAD_REQUEST;
 		throw webserver_exception("Request line incomplete");
 	}
 	if (_http_request._method		== "GET")
@@ -134,7 +149,7 @@ void webserver::request_handler(const pollfd & fd) {
 	else if (_http_request._method	== "DELETE")
 		handle_DELETE(fd); 
 	else {
-		_error_response = NOT_IMPLEMENTED;
+		_response_code = NOT_IMPLEMENTED;
 		throw webserver_exception("Unknown method");
 	}
 	return ;
@@ -151,13 +166,20 @@ void webserver::init_request() {
 }
 
 void poll_result(const pollfd & fd) {
-	cout << "events : "
-		 << (fd.revents & POLLIN 	? "POLLIN"	 : "")	<< " "	\
-		 << (fd.revents & POLLHUP	? "POLLHUP"	 : "")	<< " "	\
-		 << (fd.revents & POLLERR	? "POLLERR"	 : "")	<< " "	\
-		 << (fd.revents & POLLPRI	? "POLLPRI"	 : "")	<< " "	\
-		 << (fd.revents & POLLOUT	? "POLLOUT"	 : "")	<< " "	\
-		 << (fd.revents & POLLNVAL	? "POLLNVAL" : "")	<< endl;
+	cout << "events  : "												\
+		 << (fd.events & POLLIN 	? " POLLIN |"		: "        |")	\
+		 << (fd.events & POLLHUP	? " POLLHUP |"	: "         |")		\
+		 << (fd.events & POLLERR	? " POLLERR |"	: "         |")		\
+		 << (fd.events & POLLPRI	? " POLLPRI |"	: "         |")		\
+		 << (fd.events & POLLOUT	? " POLLOUT |"	: "         |")		\
+		 << (fd.events & POLLNVAL	? " POLLNVAL |"	: "          |")	<< endl;
+	cout << "revents : " 												\
+		 << (fd.revents & POLLIN 	? " POLLIN |"		: "        |")	\
+		 << (fd.revents & POLLHUP	? " POLLHUP |"	: "         |")		\
+		 << (fd.revents & POLLERR	? " POLLERR |"	: "         |")		\
+		 << (fd.revents & POLLPRI	? " POLLPRI |"	: "         |")		\
+		 << (fd.revents & POLLOUT	? " POLLOUT |"	: "         |")		\
+		 << (fd.revents & POLLNVAL	? " POLLNVAL |"	: "          |")	<< endl;
 }
 
 std::string my_get_line(std::string from ) {
@@ -168,8 +190,10 @@ std::string my_get_line(std::string from ) {
 }
 
 int	webserver::handle_GET(const pollfd &fd) {
-	cerr << "GET handler for " << fd.fd << endl;
-
+	if (_http_request._uri == "/" ||
+		_http_request._uri == "/index.html")
+		send_response(fd);
+	send_error_code(fd);
 	return 0;
 }
 
@@ -186,8 +210,29 @@ int	webserver::handle_DELETE(const pollfd &fd) {
 void webserver::send_error_code(const pollfd &fd) {
 	std::string http_response;
 	http_response += "HTTP/1.1 ";
-	http_response += i_to_str(_error_response);
-	http_response += get_code_description(_error_response);
+	http_response += i_to_str(_response_code);
+	http_response += get_code_description(_response_code);
+	send(fd.fd, http_response.c_str(), http_response.size(), 0);
+}
+
+std::string slurp_file(std::string file) {
+	std::ifstream stream(file);
+	std::stringstream buffer;
+	buffer << stream.rdbuf();
+	std::string file_content(buffer.str());
+	cout << "WEBPAGE " << file_content << endl \
+ 		 << "WEBPAGE " << endl;
+	return file_content;
+}
+
+void webserver::send_response(const pollfd &fd) {
+	std::string http_response;
+	_response_code = 200;
+	http_response += "HTTP/1.1 ";
+	http_response += i_to_str(_response_code);
+	http_response += get_code_description(_response_code);
+	http_response += "\r\n\r\n";
+	http_response += slurp_file("index.html");
 	send(fd.fd, http_response.c_str(), http_response.size(), 0);
 }
 
@@ -198,8 +243,10 @@ int webserver::read_msg(pollfd* fd) {
 		char buffer[100];
 		int rval = 0;
 		while (!rval)
+		{
 			rval = poll(fd, 1, 1000);
-		poll_result(fd[0]);
+			//poll_result(fd[0]);
+		}
 		if (rval < 0)
 			return -1;
 		if (fd[0].revents & POLLERR || 							\
@@ -210,7 +257,7 @@ int webserver::read_msg(pollfd* fd) {
 			cerr << "receiving message:\n";
 			int end = recv(fd[0].fd, &buffer, 100, 0);
 			if (end < 0)
-				return -1;
+				return -3;
 			else if (!end) {
 				cerr << "Received nothing.\n";
 				break;
@@ -239,76 +286,76 @@ std::string i_to_str(int nbr) {
 std::string webserver::get_code_description(int code) {
 	switch (code) {
 		case OK :
-			return "OK";
+			return " OK";
 		case CREATED :
-			return "CREATED";
+			return " CREATED";
 		case ACCEPTED :
-			return "ACCEPTED";
+			return " ACCEPTED";
 		case NO_CONTENT :
-			return "NO_CONTENT";
+			return " NO_CONTENT";
 		case RESET_CONTENT :
-			return "RESET_CONTENT";
+			return " RESET_CONTENT";
 		case PARTIAL_CONTENT :
-			return "PARTIAL_CONTENT";
+			return " PARTIAL_CONTENT";
 		case MULTIPLE_CHOICES :
-			return "MULTIPLE_CHOICES";
+			return " MULTIPLE_CHOICES";
 		case MOVED_PERMANENTLY :
-			return "MOVED_PERMANENTLY";
+			return " MOVED_PERMANENTLY";
 		case FOUND :
-			return "FOUND";
+			return " FOUND";
 		case SEE_OTHER :
-			return "SEE_OTHER";
+			return " SEE_OTHER";
 		case NOT_MODIFIED :
-			return "NOT_MODIFIED";
+			return " NOT_MODIFIED";
 		case USE_PROXY :
-			return "USE_PROXY";
+			return " USE_PROXY";
 		case TEMPORARY_REDIRECT :
-			return "TEMPORARY_REDIRECT";
+			return " TEMPORARY_REDIRECT";
 		case BAD_REQUEST :
-			return "BAD_REQUEST";
+			return " BAD_REQUEST";
 		case UNAUTHORIZED :
-			return "UNAUTHORIZED";
+			return " UNAUTHORIZED";
 		case FORBIDDEN :
-			return "FORBIDDEN";
+			return " FORBIDDEN";
 		case NOT_FOUND :
-			return "NOT_FOUND";
+			return " NOT_FOUND";
 		case METHOD_NOT_ALLOWED :
-			return "METHOD_NOT_ALLOWED";
+			return " METHOD_NOT_ALLOWED";
 		case NOT_ACCEPTABLE :
-			return "NOT_ACCEPTABLE";
+			return " NOT_ACCEPTABLE";
 		case PROXY_AUTHENTICATION_REQUIRED :
-			return "PROXY_AUTHENTICATION_REQUIRED";
+			return " PROXY_AUTHENTICATION_REQUIRED";
 		case REQUEST_TIMEOUT :
-			return "REQUEST_TIMEOUT";
+			return " REQUEST_TIMEOUT";
 		case CONFLICT :
-			return "CONFLICT";
+			return " CONFLICT";
 		case GONE :
-			return "GONE";
+			return " GONE";
 		case LENGTH_REQUIRED :
-			return "LENGTH_REQUIRED";
+			return " LENGTH_REQUIRED";
 		case PRECONDITION_FAILED :
-			return "PRECONDITION_FAILED";
+			return " PRECONDITION_FAILED";
 		case REQUEST_ENTITY_TOO_LARGE :
-			return "REQUEST_ENTITY_TOO_LARGE";
+			return " REQUEST_ENTITY_TOO_LARGE";
 		case REQUEST_URI_TOO_LONG :
-			return "REQUEST_URI_TOO_LONG";
+			return " REQUEST_URI_TOO_LONG";
 		case UNSUPPORTED_MEDIA_TYPE :
-			return "UNSUPPORTED_MEDIA_TYPE";
+			return " UNSUPPORTED_MEDIA_TYPE";
 		case REQUESTED_RANGE_NOT_SATISFIABLE :
-			return "REQUESTED_RANGE_NOT_SATISFIABLE";
+			return " REQUESTED_RANGE_NOT_SATISFIABLE";
 		case EXPECTATION_FAILED :
-			return "EXPECTATION_FAILED";
+			return " EXPECTATION_FAILED";
 		case INTERNAL_SERVER_ERROR :
-			return "INTERNAL_SERVER_ERROR";
+			return " INTERNAL_SERVER_ERROR";
 		case NOT_IMPLEMENTED :
-			return "NOT_IMPLEMENTED";
+			return " NOT_IMPLEMENTED";
 		case BAD_GATEWAY :
-			return "BAD_GATEWAY";
+			return " BAD_GATEWAY";
 		case SERVICE_UNAVAILABLE :
-			return "SERVICE_UNAVAILABLE";
+			return " SERVICE_UNAVAILABLE";
 		case GATEWAY_TIMEOUT :
-			return "GATEWAY_TIMEOUT";
+			return " GATEWAY_TIMEOUT";
 		default :
-			return "";
+			return " ";
 	}
 }

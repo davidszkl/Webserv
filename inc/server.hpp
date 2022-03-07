@@ -9,7 +9,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>				//close()
-#include <errno.h>
+//#include <errno.h>
 
 #include <arpa/inet.h>			//inet_addr()
 #include <netinet/in.h>			//sockaddr_in

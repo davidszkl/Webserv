@@ -1,6 +1,8 @@
 #pragma once
 #include "server.hpp"
 #include <vector>
+#include <fstream>
+#include <signal.h>									//TO_ERASE
 
 enum RESPONSE_CODES {
 	OK					= 200,
@@ -44,6 +46,8 @@ enum RESPONSE_CODES {
 	HTTP_VERSION_NOT_SUPPORTED		= 505
 };
 
+static bool				_server_alive;
+
 enum METHODS {
 	GET		= 1,
 	POST	= 2,
@@ -68,6 +72,7 @@ public:
 	int		handle_POST(const pollfd &fd);
 	int		handle_DELETE(const pollfd &fd);
 	void	send_error_code(const pollfd &fd);
+	void	send_response(const pollfd &fd);
 	std::string get_code_description(int code);
 
 	class webserver_exception : public std::runtime_error
@@ -81,6 +86,7 @@ public:
 		std::string _method;
 		std::string _uri;
 		std::string _version;
+		std::string _body;
 	};
 	
 //private:
@@ -92,9 +98,8 @@ public:
 	sockaddr_in			_client_addr;
 	pollfd				_pollfd[1];
 	socklen_t			_socklen;
-	bool				_server_alive;
 	http_request		_http_request;
-	int					_error_response;
+	int					_response_code;
 };
 
 std::string my_get_line(std::string from );
