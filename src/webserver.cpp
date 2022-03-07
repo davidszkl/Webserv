@@ -132,7 +132,6 @@ void webserver::listen_all()
 }
 
 void webserver::request_handler(const pollfd & fd) {
-	_short_request = my_get_line(_request);
 	init_request();
 	if (_http_request._uri == "/stop") {
 		_server_alive = false;
@@ -147,22 +146,52 @@ void webserver::request_handler(const pollfd & fd) {
 	else if (_http_request._method	== "POST")
 		handle_POST(fd);
 	else if (_http_request._method	== "DELETE")
-		handle_DELETE(fd); 
+		handle_DELETE(fd);
 	else {
 		_response_code = NOT_IMPLEMENTED;
 		throw webserver_exception("Unknown method");
 	}
 	return ;
 }
+std::string read_header_line(std::string from) {
+	std::string str;
+	for (size_t n = 0; from[n]; n++)
+	{
+		str += from[n];
+		if (str[n] == '\n' && str.size() > 2 && str[n - 1] == '\r')
+			break;
+	}
+	return str;
+}
 
 void webserver::init_request() {
-	std::stringstream ss(_short_request);
+	int temp_pos = _http_request._full_request.find("\r\n\r\n");
+	if (temp_pos > 0)
+		_http_request._header = _http_request._full_request.substr(0, temp_pos);
+	_http_request._body = _http_request._full_request.substr(temp_pos + 4, _http_request._full_request.size());
+
+	size_t cursor = 0;
+	while(1)
+	{
+		std::string str_from(&_http_request._header[cursor]);
+		std::string line = read_header_line(&_http_request._header[cursor]);
+		cursor += line.size();
+		_http_request._header_lines.push_back(line);
+		if (line == "\r\n" || !line.size())
+			break ;
+	}
+	std::stringstream ss(_http_request._header_lines[0]);
 	ss >> _http_request._method;
-	cerr << "_http_request._method: " << _http_request._method << endl;
 	ss >> _http_request._uri;
-	cerr << "_http_request._uri: " << _http_request._uri << endl;
 	ss >> _http_request._version;
-	cerr << "_http_request._version: " << _http_request._version << endl;
+	cerr << "_http_request._full_request:\n"<< _http_request._full_request << endl;
+	cerr << "_http_request._header:\n"		<< _http_request._header << endl;
+	cerr << "_http_request._body:\n"		<< _http_request._body << endl;
+	cerr << "_http_request._method:\n"		<< _http_request._method << endl;
+	cerr << "_http_request._uri:\n"			<< _http_request._uri << endl;
+	cerr << "_http_request._version:\n"		<< _http_request._version << endl;
+	for (size_t n = 0; n < _http_request._header_lines.size(); n++)
+		cerr << "header_line[" << n << "] = " << _http_request._header_lines[n] << endl;
 }
 
 void poll_result(const pollfd & fd) {
@@ -263,7 +292,7 @@ int webserver::read_msg(pollfd* fd) {
 				break;
 			}
 			buffer[end] = '\0';
-			_request += buffer;
+			_http_request._full_request += buffer;
 			if (buffer[end - 1] == '\n' && buffer[end - 2] == '\r')
 				break;
 		}

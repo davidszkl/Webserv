@@ -21,9 +21,20 @@ enum EXIT_ERRORS  {
 	CONNECT_ERROR,
 	CLOSE_ERROR
 };
+#include <sstream>
 
-void chat(int sockfd) {
-	send(sockfd, "stop" , 4, 0);
+std::string slurp_file(std::string file) {
+	std::ifstream stream(file);
+	std::stringstream buffer;
+	buffer << stream.rdbuf();
+	std::string file_content("GET /index.html HTTP/1.1\r\nline1\r\nline2\r\n\r\n");
+	file_content += buffer.str();
+	return file_content;
+}
+
+void send_html(int sockfd) {
+	std::string tmp(slurp_file("../index.html"));
+	send(sockfd, tmp.c_str() , tmp.size(), 0);
 }
 
 int main()
@@ -47,7 +58,7 @@ int main()
 		return CONNECT_ERROR;
 	}
 	cerr << "Successfully connected" << endl;
-	chat(sockfd);
+	send_html(sockfd);
 	if (-1 == close(sockfd))
 	{
 		perror("close()");

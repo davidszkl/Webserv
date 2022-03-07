@@ -83,10 +83,10 @@ public:
 
 	struct http_request
 	{
+		std::string  
 		std::string _method;
 		std::string _uri;
 		std::string _version;
-		std::string _body;
 	};
 	
 //private:
