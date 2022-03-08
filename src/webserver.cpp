@@ -1,4 +1,5 @@
 #include "webserver.hpp"
+#include "debug.hpp"
 
 //TO_ERASE
 void server_shutdown(int signbr) {
@@ -399,3 +400,4 @@ std::string read_header_line(std::string from) {
 	}
 	return str;
 }
+
