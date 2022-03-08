@@ -7,7 +7,7 @@ void server_shutdown(int signbr) {
 }
 //TO_ERASE
 
-webserver::webserver(std::vector<int> config):	_socklen(sizeof(_client_addr)), _response_code(404)
+webserver::webserver(std::vector<int> config):	_socklen(sizeof(_client_addr)), _root("server_files"), _response_code(404)
 {
 	signal(SIGINT, &server_shutdown);
 	_server_alive = true;
@@ -102,6 +102,7 @@ void webserver::listen_all()
 		cerr << "Connection on fd " << accept_fd << " accepted" << endl \
 			 << "Connection fd is " << _pollfd[0].fd << endl;
 
+		clear_request();
 		int read_rval = read_msg(_pollfd);
 		if (read_rval == -1) {
 			cerr << "Fatal problem occured during connection with " << accept_fd << endl;
@@ -118,10 +119,7 @@ void webserver::listen_all()
 			request_handler(_pollfd[0]);
 		}
 		catch (webserver_exception & e) {
-			cerr << e.what() << endl			\
-				 << "Short request: " << endl	\
-				 << _short_request << endl;
-			send_error_code(_pollfd[0]);
+			cerr << e.what() << endl;
 		}
 		if (close(_pollfd[0].fd) < 0)
 			throw webserver_exception("Could not close connection fd");
@@ -133,7 +131,8 @@ void webserver::listen_all()
 
 void webserver::request_handler(const pollfd & fd) {
 	init_request();
-	if (_http_request._uri == "/stop") {
+	if (_http_request._full_request == "stop" || \
+		_http_request._uri == "/stop") {
 		_server_alive = false;
 		return ;
 	}
@@ -153,18 +152,19 @@ void webserver::request_handler(const pollfd & fd) {
 	}
 	return ;
 }
-std::string read_header_line(std::string from) {
-	std::string str;
-	for (size_t n = 0; from[n]; n++)
-	{
-		str += from[n];
-		if (str[n] == '\n' && str.size() > 2 && str[n - 1] == '\r')
-			break;
-	}
-	return str;
+
+void	webserver::clear_request() {
+	_http_request._full_request.clear();
+	_http_request._header.clear();
+	_http_request._body.clear();
+	_http_request._method.clear();
+	_http_request._uri.clear();
+	_http_request._version.clear();
+	_http_request._header_lines.clear();
 }
 
 void webserver::init_request() {
+
 	int temp_pos = _http_request._full_request.find("\r\n\r\n");
 	if (temp_pos > 0)
 		_http_request._header = _http_request._full_request.substr(0, temp_pos);
@@ -183,27 +183,23 @@ void webserver::init_request() {
 	std::stringstream ss(_http_request._header_lines[0]);
 	ss >> _http_request._method;
 	ss >> _http_request._uri;
+	_http_request._path = _root + _http_request._uri;
+	cerr << "URI\n" << _http_request._uri << endl;
+	cerr << "PATH\n" << _http_request._path << endl;
 	ss >> _http_request._version;
-	cerr << "_http_request._full_request:\n"<< _http_request._full_request << endl;
 	cerr << "_http_request._header:\n"		<< _http_request._header << endl;
-	cerr << "_http_request._body:\n"		<< _http_request._body << endl;
-	cerr << "_http_request._method:\n"		<< _http_request._method << endl;
-	cerr << "_http_request._uri:\n"			<< _http_request._uri << endl;
-	cerr << "_http_request._version:\n"		<< _http_request._version << endl;
-	for (size_t n = 0; n < _http_request._header_lines.size(); n++)
-		cerr << "header_line[" << n << "] = " << _http_request._header_lines[n] << endl;
 }
 
 void poll_result(const pollfd & fd) {
 	cout << "events  : "												\
-		 << (fd.events & POLLIN 	? " POLLIN |"		: "        |")	\
+		 << (fd.events & POLLIN 	? " POLLIN |"	: "        |")		\
 		 << (fd.events & POLLHUP	? " POLLHUP |"	: "         |")		\
 		 << (fd.events & POLLERR	? " POLLERR |"	: "         |")		\
 		 << (fd.events & POLLPRI	? " POLLPRI |"	: "         |")		\
 		 << (fd.events & POLLOUT	? " POLLOUT |"	: "         |")		\
 		 << (fd.events & POLLNVAL	? " POLLNVAL |"	: "          |")	<< endl;
 	cout << "revents : " 												\
-		 << (fd.revents & POLLIN 	? " POLLIN |"		: "        |")	\
+		 << (fd.revents & POLLIN 	? " POLLIN |"	: "        |")		\
 		 << (fd.revents & POLLHUP	? " POLLHUP |"	: "         |")		\
 		 << (fd.revents & POLLERR	? " POLLERR |"	: "         |")		\
 		 << (fd.revents & POLLPRI	? " POLLPRI |"	: "         |")		\
@@ -211,18 +207,24 @@ void poll_result(const pollfd & fd) {
 		 << (fd.revents & POLLNVAL	? " POLLNVAL |"	: "          |")	<< endl;
 }
 
-std::string my_get_line(std::string from ) {
-	std::string to;
-	for (size_t n = 0; from[n] && from[n] != '\n'; n++)
-		to += from[n];
-	return to;
-}
-
 int	webserver::handle_GET(const pollfd &fd) {
-	if (_http_request._uri == "/" ||
-		_http_request._uri == "/index.html")
-		send_response(fd);
-	send_error_code(fd);
+	bool error(false);
+	if (_http_request._path.find("server_files") == _http_request._path.npos)
+	{
+		_response_code = FORBIDDEN;
+		error = true;
+	}
+	else if (_http_request._path.find("server_files") != std::string::npos)
+	{
+		if (_http_request._path.find("index.html") != std::string::npos || \
+			_http_request._path.find("hello") != std::string::npos)
+			_response_code = OK;
+		else {
+			_response_code = NOT_FOUND;
+			error = true;
+		}
+	}
+	send_response(fd, _http_request._path, error);
 	return 0;
 }
 
@@ -236,37 +238,20 @@ int	webserver::handle_DELETE(const pollfd &fd) {
 	return 0;
 }
 
-void webserver::send_error_code(const pollfd &fd) {
+void webserver::send_response(const pollfd &fd, std::string filename, bool error) {
 	std::string http_response;
 	http_response += "HTTP/1.1 ";
 	http_response += i_to_str(_response_code);
 	http_response += get_code_description(_response_code);
+	if (!error) {
+		http_response += "\r\n\r\n";
+		http_response += slurp_file(filename);
+	}
+	cerr << "RESPONSE\n" << http_response << endl; 
 	send(fd.fd, http_response.c_str(), http_response.size(), 0);
 }
 
-std::string slurp_file(std::string file) {
-	std::ifstream stream(file);
-	std::stringstream buffer;
-	buffer << stream.rdbuf();
-	std::string file_content(buffer.str());
-	cout << "WEBPAGE " << file_content << endl \
- 		 << "WEBPAGE " << endl;
-	return file_content;
-}
-
-void webserver::send_response(const pollfd &fd) {
-	std::string http_response;
-	_response_code = 200;
-	http_response += "HTTP/1.1 ";
-	http_response += i_to_str(_response_code);
-	http_response += get_code_description(_response_code);
-	http_response += "\r\n\r\n";
-	http_response += slurp_file("index.html");
-	send(fd.fd, http_response.c_str(), http_response.size(), 0);
-}
-
-int webserver::read_msg(pollfd* fd) {
-	_request.clear();
+int webserver::read_msg(pollfd* fd) {;
 	while (true)
 	{
 		char buffer[100];
@@ -297,19 +282,8 @@ int webserver::read_msg(pollfd* fd) {
 				break;
 		}
 	}
-	if (_request == "stop")
-		_server_alive = false;
 	cerr << "Quitting\n";
 	return 0;
-}
-
-std::string i_to_str(int nbr) {
-	std::stringstream ss;
-    std::string s;
-    ss << nbr;
-    s = ss.str();
-
-    return s;
 }
 
 std::string webserver::get_code_description(int code) {
@@ -387,4 +361,41 @@ std::string webserver::get_code_description(int code) {
 		default :
 			return " ";
 	}
+}
+
+std::string slurp_file(std::string file) {
+	std::ifstream stream(file);
+	std::stringstream buffer;
+	buffer << stream.rdbuf();
+	std::string file_content(buffer.str());
+	cout << "WEBPAGE " << file_content << endl \
+ 		 << "WEBPAGE " << endl;
+	return file_content;
+}
+
+std::string i_to_str(int nbr) {
+	std::stringstream ss;
+    std::string s;
+    ss << nbr;
+    s = ss.str();
+
+    return s;
+}
+
+std::string my_get_line(std::string from ) {
+	std::string to;
+	for (size_t n = 0; from[n] && from[n] != '\n'; n++)
+		to += from[n];
+	return to;
+}
+
+std::string read_header_line(std::string from) {
+	std::string str;
+	for (size_t n = 0; from[n]; n++)
+	{
+		str += from[n];
+		if (str[n] == '\n' && str.size() > 2 && str[n - 1] == '\r')
+			break;
+	}
+	return str;
 }

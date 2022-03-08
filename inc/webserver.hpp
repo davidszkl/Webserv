@@ -68,11 +68,11 @@ public:
 	int		read_msg(pollfd* fd);
 	void	request_handler(const pollfd & fd);
 	void	init_request();
+	void	clear_request();
 	int		handle_GET(const pollfd &fd);
 	int		handle_POST(const pollfd &fd);
 	int		handle_DELETE(const pollfd &fd);
-	void	send_error_code(const pollfd &fd);
-	void	send_response(const pollfd &fd);
+	void	send_response(const pollfd &fd, std::string filename, bool error);
 	std::string get_code_description(int code);
 
 	class webserver_exception : public std::runtime_error
@@ -89,22 +89,24 @@ public:
 		std::string _method;
 		std::string _uri;
 		std::string _version;
+		std::string _path;
 		std::vector<std::string> _header_lines;
 	};
 	
-//private:
+private:
 
 	std::vector<server>	_servers;
 	std::vector<pollfd>	_pollsock;
-	std::string			_request;
-	std::string			_short_request;
 	sockaddr_in			_client_addr;
 	pollfd				_pollfd[1];
 	socklen_t			_socklen;
 	http_request		_http_request;
+	std::string			_root;
 	int					_response_code;
 };
 
-std::string my_get_line(std::string from );
 void 		poll_result(const pollfd & fd);
+std::string my_get_line(std::string from );
 std::string i_to_str(int nbr);
+std::string slurp_file(std::string file);
+std::string read_header_line(std::string from);

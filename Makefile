@@ -1,5 +1,5 @@
 NAME	= webserv
-CC		= c++ -Wall -Wextra -Werror -std=c++98
+CC		= c++ -Wall -Wextra -Werror -std=c++98 -g3
 SRCDIR	= src
 INCDIR	= inc
 OBJDIR	= obj
@@ -27,7 +27,8 @@ clean:
 
 fclean: clean
 	rm -f $(NAME)
-	rmdir $(OBJDIR)
+	rm -rf $(NAME).dSYM
+	rm -rf $(OBJDIR)
 	make clean -C client/
 
 re: fclean all
