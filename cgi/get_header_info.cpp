@@ -3,7 +3,7 @@
 
 /*
 header must end with \r\n\r\n. Everything after that is ignored.
-if there is Content-Length: 200 in the header and name=="Content-Length"m then returns "200"
+if there is Content-Length: 200 in the header and name=="Content-Length", then returns "200"
 returns "" if not found
  */
 

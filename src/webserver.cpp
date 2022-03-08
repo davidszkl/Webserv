@@ -12,7 +12,8 @@ webserver::webserver(std::vector<int> config):	_socklen(sizeof(_client_addr)), _
 	signal(SIGINT, &server_shutdown);
 	_server_alive = true;
 	memset(&_pollfd, 0, sizeof(_pollfd));
-	_pollfd[0].events	= POLLIN | POLLOUT;
+	_pollfd.events	= POLLIN | POLLOUT;
+	_pollfd.fd		= 0;
 	try {
 		_servers.reserve(config.size());				//don't call all destructors every time a server is added
 		for (size_t n = 0; n < config.size(); n++)
@@ -31,11 +32,6 @@ webserver::~webserver() {
 			cerr << "CLOSING FD " << _servers[n]._sockfd << endl;					//vector calls server destructor all the time
 			close(_servers[n]._sockfd);
 		}
-	}
-	if (_pollfd[0].fd)
-	{
-		cerr << "CLOSING POLLFD\n";
-		close(_pollfd[0].fd);
 	}
 }
 
@@ -64,6 +60,7 @@ int webserver::get_fd_ready() const {					//get the first open fd out of poll()
 
 void webserver::listen_all()
 {
+	_pollsock.push_back(_pollfd);
 	for (size_t n = 0; n < _servers.size(); n++)		//initialize vector of pollfd that contains all server-sockets
 	{
 		pollfd tmp;
@@ -94,34 +91,35 @@ void webserver::listen_all()
 			throw webserver_exception("Poll failed on an fd");
 
 		int accept_fd = get_fd_ready();
-		if ((_pollfd[0].fd = accept(accept_fd,								\
-									reinterpret_cast<sockaddr*>(&_client_addr),	\
-									&_socklen))									\
-									< 0)
-			throw webserver_exception("Accept failed");
-		cerr << "Connection on fd " << accept_fd << " accepted" << endl \
-			 << "Connection fd is " << _pollfd[0].fd << endl;
+		if (!_pollsock[0].fd)
+		{
+			if ((_pollsock[0].fd = accept(accept_fd,								\
+										reinterpret_cast<sockaddr*>(&_client_addr),	\
+										&_socklen))									\
+										< 0)
+				throw webserver_exception("Accept failed");
+			cerr << "Connection on fd " << accept_fd << " accepted" << endl \
+				 << "Connection fd is " << _pollsock[0].fd << endl;
+			continue ;
+		}
 
 		clear_request();
-		int read_rval = read_msg(_pollfd);
+		int read_rval = read_msg(_pollsock[0].fd);
 		if (read_rval == -1) {
 			cerr << "Fatal problem occured during connection with " << accept_fd << endl;
 			cerr << "ERRNO " << errno << endl;
 			throw webserver_exception("Poll fatal error");
 		}
-		if (read_rval == -2) {
-			cerr << "Problem occured during connection with " << accept_fd << endl;
-		}
-		if (read_rval == -3) {
+		if (read_rval == -1) {
 			cerr << "Problem occured with recv() " << accept_fd << endl;
 		}
 		try {
-			request_handler(_pollfd[0]);
+			request_handler(_pollsock[0]);
 		}
 		catch (webserver_exception & e) {
 			cerr << e.what() << endl;
 		}
-		if (close(_pollfd[0].fd) < 0)
+		if (close(_pollsock[0].fd) < 0)
 			throw webserver_exception("Could not close connection fd");
 		if (clear_errors() < 0)
 			throw webserver_exception("Could not clear bad fd");
@@ -129,36 +127,42 @@ void webserver::listen_all()
 	cerr << "Stop message received.\nShutting down server." << endl;
 }
 
-int webserver::read_msg(pollfd* fd) {;
-	while (true)
-	{
-		char buffer[100];
-		int rval = 0;
-		while (!rval)
-		{
-			rval = poll(fd, 1, 1000);
-			//poll_result(fd[0]);
-		}
-		if (rval < 0)
+bool is_post(std::string str) {
+	if (str.find("POST") != std::string::npos)
+		return true;
+	return false;
+}
+
+bool find_crlf(std::string str) {
+	if (str.find("\r\n\r\n") != std::string::npos)
+		return true;
+	return false;
+}
+
+// bool find_end_of_body(std::string str) {
+
+// }
+
+int webserver::read_msg(int fd) {;
+
+	char buffer[100];
+	cerr << "receiving message:\n";
+	while(!find_crlf(std::string(buffer))) {
+		int end = recv(fd, &buffer, 100, 0);
+		if (end < 0)
 			return -1;
-		if (fd[0].revents & POLLERR || 							\
-			(fd[0].revents & POLLHUP && !(fd[0].revents & POLLIN)))
-			return -2;
-		if (fd[0].revents & POLLIN)
-		{
-			cerr << "receiving message:\n";
-			int end = recv(fd[0].fd, &buffer, 100, 0);
-			if (end < 0)
-				return -3;
-			else if (!end) {
-				cerr << "Received nothing.\n";
-				break;
-			}
-			buffer[end] = '\0';
-			_http_request._full_request += buffer;
-			if (buffer[end - 1] == '\n' && buffer[end - 2] == '\r')
-				break;
-		}
+		buffer[end] = '\0';
+		_http_request._full_request += buffer;
+	}
+	if (is_post(_http_request._full_request)) {
+		_content_length = std::atoi(get_header_info(_http_request._full_request, "Content-Length").c_str());
+		while(!find_crlf(std::string(buffer))) {
+		int end = recv(fd, &buffer, 100, 0);
+		if (end < 0)
+			return -1;
+		buffer[end] = '\0';
+		_http_request._full_request += buffer;
+	}
 	}
 	init_request();
 	cerr << "Quitting\n";
