@@ -25,3 +25,26 @@ returns "" if not found
  */
 std::string get_header_info(const std::string& header, const std::string& name);
 
+
+//example test:
+/*
+#include "cgi.hpp"
+
+#include <iostream>
+#include <string>
+
+int main()
+{
+	std::string full_message, root;
+	full_message = "\
+POST /cgi-script.py/ok/cool?cool=skdjklfj%%%% HTTP/1.1\r\n\
+Content-Type: application/x-www-form-urlencoded\r\n\
+Content-Length: 5\r\n\
+\r\n\
+0123456789EOF";
+	root = "/media/martin/Bowser/webserv/cgi/cgi-bin";
+	if (is_valid_for_cgi(full_message, root))
+		execute_cgi(full_message, root, 1);
+}
+
+*/

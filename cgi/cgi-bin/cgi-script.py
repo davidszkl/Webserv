@@ -11,7 +11,7 @@ import os, cgitb, sys
 cgitb.enable()
 
 print('HTTP/1.1 200 OK\r')
-print('Content-type:text/html\r')
+print('Content-type: text/html\r')
 print('\r')
 
 print('<html>')
@@ -35,7 +35,10 @@ if request_method == 'GET':
 	query_string = os.getenv('QUERY_STRING')
 elif request_method == 'POST':
 	print('<debug_ouput>Reading query string from stdin...</debug_output>')
-	query_string = input()
+	try:
+		query_string = input()
+	except EOFError as e:
+		query_string = None
 else:
 	print('<output>Invlid request method:', request_method, '</ouput>')
 
