@@ -129,11 +129,49 @@ void webserver::listen_all()
 	cerr << "Stop message received.\nShutting down server." << endl;
 }
 
-void webserver::request_handler(const pollfd & fd) {
+int webserver::read_msg(pollfd* fd) {;
+	while (true)
+	{
+		char buffer[100];
+		int rval = 0;
+		while (!rval)
+		{
+			rval = poll(fd, 1, 1000);
+			//poll_result(fd[0]);
+		}
+		if (rval < 0)
+			return -1;
+		if (fd[0].revents & POLLERR || 							\
+			(fd[0].revents & POLLHUP && !(fd[0].revents & POLLIN)))
+			return -2;
+		if (fd[0].revents & POLLIN)
+		{
+			cerr << "receiving message:\n";
+			int end = recv(fd[0].fd, &buffer, 100, 0);
+			if (end < 0)
+				return -3;
+			else if (!end) {
+				cerr << "Received nothing.\n";
+				break;
+			}
+			buffer[end] = '\0';
+			_http_request._full_request += buffer;
+			if (buffer[end - 1] == '\n' && buffer[end - 2] == '\r')
+				break;
+		}
+	}
 	init_request();
+	cerr << "Quitting\n";
+	return 0;
+}
+
+void webserver::request_handler(const pollfd & fd) {
+	cerr << "======URL MESSAGE========" << endl;
+	cerr << _http_request._uri << endl;
 	if (_http_request._full_request == "stop" || \
 		_http_request._uri == "/stop") {
 		_server_alive = false;
+		cerr << "STOP CALLED" << endl;
 		return ;
 	}
 	if (!_http_request._method.size() || !_http_request._uri.size() || !_http_request._version.size()) {
@@ -207,29 +245,41 @@ void poll_result(const pollfd & fd) {
 		 << (fd.revents & POLLNVAL	? " POLLNVAL |"	: "          |")	<< endl;
 }
 
+inline bool file_exists (const std::string& name) {
+    std::ifstream f(name.c_str());
+    return f.good();
+}
+
 int	webserver::handle_GET(const pollfd &fd) {
 	bool error(false);
-	if (_http_request._path.find("server_files") == _http_request._path.npos)
-	{
-		_response_code = FORBIDDEN;
+	if (!file_exists(_http_request._path)) {
+		_response_code = 404;
 		error = true;
 	}
-	else if (_http_request._path.find("server_files") != std::string::npos)
+	else if (_http_request._path.find("server_files") == std::string::npos)
 	{
-		if (_http_request._path.find("index.html") != std::string::npos || \
-			_http_request._path.find("hello") != std::string::npos)
-			_response_code = OK;
-		else {
-			_response_code = NOT_FOUND;
-			error = true;
-		}
+		_response_code = 403;
+		error = true;
 	}
+	// if (_http_request._path.find("server_files") == _http_request._path.npos)
+	// {
+	// 	_response_code = FORBIDDEN;
+	// 	error = true;
+	// }
+	// if (_http_request._path.find("index.html") != std::string::npos || \
+	// 	_http_request._path.find("Hello") != std::string::npos)
+	// 	_response_code = OK;
+	// else {
+	// 	_response_code = NOT_FOUND;
+	// 	error = true;
+	// }
 	send_response(fd, _http_request._path, error);
 	return 0;
 }
 
 int	webserver::handle_POST(const pollfd &fd) {
 	cerr << "POST handler for " << fd.fd << endl;
+	//CODE 201
 	return 0;
 }
 
@@ -249,41 +299,6 @@ void webserver::send_response(const pollfd &fd, std::string filename, bool error
 	}
 	cerr << "RESPONSE\n" << http_response << endl; 
 	send(fd.fd, http_response.c_str(), http_response.size(), 0);
-}
-
-int webserver::read_msg(pollfd* fd) {;
-	while (true)
-	{
-		char buffer[100];
-		int rval = 0;
-		while (!rval)
-		{
-			rval = poll(fd, 1, 1000);
-			//poll_result(fd[0]);
-		}
-		if (rval < 0)
-			return -1;
-		if (fd[0].revents & POLLERR || 							\
-			(fd[0].revents & POLLHUP && !(fd[0].revents & POLLIN)))
-			return -2;
-		if (fd[0].revents & POLLIN)
-		{
-			cerr << "receiving message:\n";
-			int end = recv(fd[0].fd, &buffer, 100, 0);
-			if (end < 0)
-				return -3;
-			else if (!end) {
-				cerr << "Received nothing.\n";
-				break;
-			}
-			buffer[end] = '\0';
-			_http_request._full_request += buffer;
-			if (buffer[end - 1] == '\n' && buffer[end - 2] == '\r')
-				break;
-		}
-	}
-	cerr << "Quitting\n";
-	return 0;
 }
 
 std::string webserver::get_code_description(int code) {
