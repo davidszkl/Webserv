@@ -132,15 +132,17 @@ static void setup_and_exec(int output_fd,
 	output_fd is where the python script will write its ouput.
 	The http message should be valid! (is_valid_for_cgi must have returned true with the same message/root)
  */
-void execute_cgi(const std::string& full_message, std::string root, int output_fd)
+void execute_cgi(const std::string& full_message, std::string root, const std::string& location, int output_fd)
 {
 	if (root[root.length() -1] != '/') root += '/';
 	using std::string;
 	logn("Executing cgi...");
 	const string request = get_next_word(full_message);
-	const string path = get_next_word(&full_message[request.length() + 1]);
-	const std::size_t path_end = get_end_path(path, root);
-	const std::string exec_path = root + path.substr(path[0] == '/', path_end - (path[0] == '/'));
+	string path = get_next_word(&full_message[request.length() + 1]);
+	path = path.substr(location.length(), path.length() - location.length());
+	std::size_t path_end = get_end_path(path, root);
+	if (path_end == std::string::npos) path_end = path.length();
+	std::string exec_path = root + path.substr(0, path_end);
 	logn("path to cgi executable==" + exec_path);
 	logn("cgi request==" + request);
 	std::size_t qpos = path_end;
@@ -153,7 +155,7 @@ void execute_cgi(const std::string& full_message, std::string root, int output_f
 	bool define_query = false;
 	if (request == "GET" && qpos != path.length())
 	{
-		query_string = path.substr(qpos + 1, string::npos);
+		query_string = path.substr(qpos + 1, path.length() - qpos - 1);
 		define_query = true;
 	}
 	else if (request == "POST")

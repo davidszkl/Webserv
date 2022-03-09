@@ -69,7 +69,7 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
 	Return 1 on success, 0 on failure and 415 if valid but unsupported Content-Type;
 	If return 415, you should send 415 error page
  */
-int is_valid_for_cgi(const std::string& full_message, std::string root)
+int is_valid_for_cgi(const std::string& full_message, std::string root, const std::string& location)
 {
 	if (root[root.length() -1] != '/') root += '/';
 	logn("Checking if message is valid for cgi...");
@@ -85,7 +85,8 @@ int is_valid_for_cgi(const std::string& full_message, std::string root)
 		logn("Request ivalid for cgi: request==" + request);
 		return false;
 	}
-	const string path = get_next_word(&full_message[request.length() + 1]);
+	string path = get_next_word(&full_message[request.length() + 1]);
+	path = path.substr(location.length(), path.length() - location.length());
 	const std::size_t path_end = get_end_path(path, root);
 	if (path_end == string::npos)
 	{
