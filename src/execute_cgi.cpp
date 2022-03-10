@@ -134,7 +134,7 @@ static void setup_and_exec(int output_fd,
  */
 void execute_cgi(const std::string& full_message, std::string root, const std::string& location, int output_fd)
 {
-	if (root[root.length() -1] != '/') root += '/';
+	if (root != "" && root[root.length() -1] != '/') root += '/';
 	using std::string;
 	logn("Executing cgi...");
 	const string request = get_next_word(full_message);

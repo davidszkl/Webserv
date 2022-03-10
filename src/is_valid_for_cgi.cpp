@@ -71,7 +71,7 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
  */
 int is_valid_for_cgi(const std::string& full_message, std::string root, const std::string& location)
 {
-	if (root[root.length() -1] != '/') root += '/';
+	if (root != "" && root[root.length() -1] != '/') root += '/';
 	logn("Checking if message is valid for cgi...");
 	using std::string;
 	const string request = get_next_word(full_message);
