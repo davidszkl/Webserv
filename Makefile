@@ -3,7 +3,7 @@ CC		= c++ -Wall -Wextra -Werror -std=c++98 -g3
 SRCDIR	= src
 INCDIR	= inc
 OBJDIR	= obj
-SRC		= $(shell find src/*.cpp) cgi/get_header_info.cpp
+SRC		= $(shell find src/*.cpp)
 INC		= $(shell find inc/*.hpp)
 OBJ		= $(subst $(SRCDIR), $(OBJDIR), $(SRC:cpp=o))
 

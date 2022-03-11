@@ -4,6 +4,7 @@
 #include <fstream>
 #include "cgi.hpp"
 #include <signal.h>									//TO_ERASE
+#include <cstdlib>
 
 
 enum RESPONSE_CODES {
@@ -48,7 +49,7 @@ enum RESPONSE_CODES {
 	HTTP_VERSION_NOT_SUPPORTED		= 505
 };
 
-static bool				_server_alive;
+extern bool				_server_alive;
 
 enum METHODS {
 	GET		= 1,

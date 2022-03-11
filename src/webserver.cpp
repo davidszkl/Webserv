@@ -1,6 +1,8 @@
 #include "webserver.hpp"
 #include "debug.hpp"
 
+bool _server_alive = true;
+
 //TO_ERASE
 void server_shutdown(int signbr) {
 	(void)signbr;
@@ -358,7 +360,7 @@ std::string webserver::get_code_description(int code) const {
 }
 
 std::string slurp_file(std::string file) {
-	std::ifstream stream(file);
+	std::ifstream stream(file.c_str());
 	std::stringstream buffer;
 	buffer << stream.rdbuf();
 	std::string file_content(buffer.str());
