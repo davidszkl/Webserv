@@ -44,4 +44,10 @@ private:
 	sockaddr_in		_server_addr;
 	int				_sockfd;
 	int				_port;
+	std::string		_401_page;
+	std::string		_403_page;
+	std::string		_404_page;
+	std::string		_405_page;
+	std::string		_501_page;
+	std::string		_503_page;
 };

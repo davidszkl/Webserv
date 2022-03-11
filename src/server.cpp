@@ -2,6 +2,11 @@
 
 server::server(const int port): _port(port)
 {
+	_401_page = "server_files/401_page";
+	_403_page = "server_files/403_page";
+	_404_page = "server_files/404_page";
+	_405_page = "server_files/405_page";
+	_503_page = "server_files/503_page";
 	_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_sockfd < 0)
 		throw server_exception("Socket creation failed.\nShutting down server.\n");
