@@ -66,6 +66,7 @@ public:
 
 	void	listen_all();
 	int		clear_errors();
+	void	init_pollsock();
 	int		get_fd_ready() const;
 	int		read_msg(int fd);
 	void	request_handler(const pollfd & fd);
@@ -109,6 +110,9 @@ private:
 };
 
 void 		poll_result(const pollfd & fd);
+bool		find_crlf(std::string str);
+bool		is_post(std::string str);
+inline bool file_exists (const std::string& name);
 std::string my_get_line(std::string from );
 std::string i_to_str(int nbr);
 std::string slurp_file(std::string file);
