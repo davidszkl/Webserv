@@ -2,7 +2,9 @@
 #include "server.hpp"
 #include <vector>
 #include <fstream>
+#include "cgi.hpp"
 #include <signal.h>									//TO_ERASE
+
 
 enum RESPONSE_CODES {
 	OK					= 200,
@@ -64,8 +66,9 @@ public:
 
 	void	listen_all();
 	int		clear_errors();
+	void	init_pollsock();
 	int		get_fd_ready() const;
-	int		read_msg(pollfd* fd);
+	int		read_msg(int fd);
 	void	request_handler(const pollfd & fd);
 	void	init_request();
 	void	clear_request();
@@ -98,14 +101,18 @@ private:
 	std::vector<server>	_servers;
 	std::vector<pollfd>	_pollsock;
 	sockaddr_in			_client_addr;
-	pollfd				_pollfd[1];
+	pollfd				_pollfd;
 	socklen_t			_socklen;
 	http_request		_http_request;
 	std::string			_root;
 	int					_response_code;
+	size_t				_content_length;
 };
 
 void 		poll_result(const pollfd & fd);
+bool		find_crlf(std::string str);
+bool		is_post(std::string str);
+inline bool file_exists (const std::string& name);
 std::string my_get_line(std::string from );
 std::string i_to_str(int nbr);
 std::string slurp_file(std::string file);

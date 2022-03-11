@@ -23,7 +23,7 @@ enum EXIT_ERRORS  {
 };
 
 void send_stop(int sockfd) {
-	send(sockfd, "stop" , 4, 0);
+	send(sockfd, "stop\r\n\r\n" , 8, 0);
 }
 
 int main()
