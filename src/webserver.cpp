@@ -103,22 +103,18 @@ void webserver::listen_all()
 			cerr << "ERRNO " << errno << endl;
 			throw webserver_exception("Poll fatal error");
 		}
-		if (read_rval == -1) {
-			cerr << "Problem occured with recv() " << accept_fd << endl;
-		}
 		try {
-			request_handler(_pollsock[0]);
+			int id = get_server_id(accept_fd);
+			request_handler(_pollsock[0], _servers[id]);
 		}
 		catch (webserver_exception & e) {
 			cerr << e.what() << endl;
 		}
-		if (close(_pollsock[0].fd) < 0)
-			throw webserver_exception("Could not close connection fd");
-		if (clear_errors() < 0)
-			throw webserver_exception("Could not clear bad fd");
-		_pollsock[0].fd = 0;
+		close(_pollsock[0].fd);
+		_pollsock[0].fd		= 0;
 		_pollsock[0].events = 0;
 		accept_fd = -1;
+		clear_errors();
 	}
 	cerr << "Stop message received.\nShutting down server." << endl;
 }
@@ -127,8 +123,7 @@ int webserver::read_msg(int fd) {;
 	char buffer[100] = {0};
 	int end = 0;
 	clear_request();
-	cerr << "receiving message:\n";
-//	sleep(1);
+	cerr << "Receiving message:\n";
 	while(!find_crlf(std::string(buffer)))
 	{
 		end = recv(fd, &buffer, 100, 0);
@@ -149,7 +144,6 @@ int webserver::read_msg(int fd) {;
 			_http_request._full_request += buffer;
 		}
 	}
-	init_request();
 	cerr << "Quitting\n";
 	return 0;
 }
@@ -166,7 +160,8 @@ bool is_post(std::string str) {
 	return false;
 }
 
-void webserver::request_handler(const pollfd & fd) {
+void webserver::request_handler(const pollfd & fd, const server & server) {
+	init_request();
 	cerr << "======URL MESSAGE========" << endl;
 	cerr << _http_request._uri << endl;
 	if (_http_request._full_request == "stop" || \
@@ -177,47 +172,34 @@ void webserver::request_handler(const pollfd & fd) {
 	}
 	if (!_http_request._method.size() || !_http_request._uri.size() || !_http_request._version.size()) {
 		_response_code = BAD_REQUEST;
-		throw webserver_exception("Request line incomplete");
+		send_response(fd, "", false);
 	}
 	if (_http_request._method		== "GET")
-		handle_GET(fd);
+		handle_GET(fd, server);
 	else if (_http_request._method	== "POST")
 		handle_POST(fd);
 	else if (_http_request._method	== "DELETE")
 		handle_DELETE(fd);
 	else {
 		_response_code = NOT_IMPLEMENTED;
-		throw webserver_exception("Unknown method");
+		send_response(fd, server._501_page, true);
 	}
-	return ;
 }
 
-int	webserver::handle_GET(const pollfd &fd) {
-	bool error(false);
+int	webserver::handle_GET(const pollfd &fd, const server & server) {
+	bool body					= true;
+	std::string response_file	= _http_request._path;
 	if (!file_exists(_http_request._path)) {
-		_response_code = 404;
-		error = true;
+		_response_code = NOT_FOUND;
+		response_file = server._404_page;
 	}
-	else if (_http_request._path.find("server_files") == std::string::npos)
-	{
-		_response_code = 403;
-		error = true;
+	else if (_http_request._path.find("server_files") == std::string::npos) {
+		_response_code = FORBIDDEN;
+		response_file = server._403_page;
 	}
-	// if (_http_request._path.find("server_files") == _http_request._path.npos)
-	// {
-	// 	_response_code = FORBIDDEN;
-	// 	error = true;
-	// }
-	// if (_http_request._path.find("index.html") != std::string::npos || \
-	// 	_http_request._path.find("Hello") != std::string::npos)
-	// 	_response_code = OK;
-	// else {
-	// 	_response_code = NOT_FOUND;
-	// 	error = true;
-	// }
 	else
-		_response_code = 200;
-	send_response(fd, _http_request._path, error);
+		_response_code = OK;
+	send_response(fd, response_file, body);
 	return 0;
 }
 
@@ -232,12 +214,12 @@ int	webserver::handle_DELETE(const pollfd &fd) {
 	return 0;
 }
 
-void webserver::send_response(const pollfd &fd, std::string filename, bool error) {
+void webserver::send_response(const pollfd &fd, std::string filename, bool body) {
 	std::string http_response;
 	http_response += "HTTP/1.1 ";
 	http_response += i_to_str(_response_code);
 	http_response += get_code_description(_response_code);
-	if (!error) {
+	if (body) {
 		http_response += "\r\n\r\n";
 		http_response += slurp_file(filename);
 	}
@@ -275,19 +257,17 @@ void webserver::init_request() {
 	cerr << "_http_request._header:\n"	<< _http_request._header << endl;
 }
 
-int webserver::clear_errors() {						//clear servers that got shutdown for some reason
+void webserver::clear_errors() {						//clear servers that got shutdown for some reason
 	for (size_t n = 1; n < _pollsock.size(); n++)
 	{
 		if (_pollsock[n].revents & POLLERR)
 		{
 			cerr << "killing server " << n << endl;
-			if (close(_pollsock[n].fd) < 0)
-				return -1;
+			close(_pollsock[n].fd);
 			_servers.erase(_servers.begin() + n);
 			_pollsock.erase(_pollsock.begin() + n);
 		}
 	}
-	return 0;
 }
 
 // bool find_end_of_body(std::string str) {
@@ -299,7 +279,7 @@ inline bool file_exists (const std::string& name) {
     return f.good();
 }
 
-std::string webserver::get_code_description(int code) {
+std::string webserver::get_code_description(int code) const {
 	switch (code) {
 		case OK :
 			return " OK";
@@ -383,7 +363,7 @@ std::string slurp_file(std::string file) {
 	std::string file_content(buffer.str());
 	if (!(file == "server_files/favicon.ico"))
 	{
-		cout << "WEBPAGE " << file_content << endl \
+		cout << "WEBPAGE\n" << file_content << endl \
  			 << "WEBPAGE " << endl;
 	}
 	return file_content;
@@ -416,7 +396,7 @@ std::string read_header_line(std::string from) {
 	return str;
 }
 
-void poll_result(const pollfd & fd) {
+void poll_result(const pollfd & fd){
 	cout << "events  : "												\
 		 << (fd.events & POLLIN 	? " POLLIN |"	: "        |")		\
 		 << (fd.events & POLLHUP	? " POLLHUP |"	: "         |")		\
@@ -441,4 +421,12 @@ void	webserver::clear_request() {
 	_http_request._uri.clear();
 	_http_request._version.clear();
 	_http_request._header_lines.clear();
+}
+
+int webserver::get_server_id(int fd_tofind) const {
+	for (size_t n = 1; n < _pollsock.size(); n++) {
+		if (_pollsock[n].fd == fd_tofind)
+			return n - 1;
+	}
+	return -1;
 }

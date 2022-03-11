@@ -65,18 +65,19 @@ public:
 	~webserver();
 
 	void	listen_all();
-	int		clear_errors();
+	void	clear_errors();
 	void	init_pollsock();
-	int		get_fd_ready() const;
+	int		get_fd_ready()			const;
+	int		get_server_id(int fd)	const;
 	int		read_msg(int fd);
-	void	request_handler(const pollfd & fd);
+	void	request_handler(const pollfd & fd, const server & server);
 	void	init_request();
 	void	clear_request();
-	int		handle_GET(const pollfd &fd);
+	int		handle_GET(const pollfd &fd, const server & server);
 	int		handle_POST(const pollfd &fd);
 	int		handle_DELETE(const pollfd &fd);
 	void	send_response(const pollfd &fd, std::string filename, bool error);
-	std::string get_code_description(int code);
+	std::string get_code_description(int code) const;
 
 	class webserver_exception : public std::runtime_error
 	{
