@@ -1,3 +1,4 @@
+#include "debug.hpp"
 #include "config.hpp"
 #include <fstream>
 #include <exception>
@@ -6,6 +7,8 @@
 #include <cctype>
 #include <cstdlib>
 #include "to_string.hpp"
+
+std::vector<config> get_config_vector(const std::string& str, std::size_t line_num);
 
 static std::string get_file_content(const std::string& file_path)
 {
@@ -48,9 +51,9 @@ static bool is_valid_location(const std::string& str, std::size_t i, std::size_t
 	while (std::isspace(str[j])) j++;
 	if (j == i) throw std::runtime_error(to_string(ln2) + ": need path between location and '{'");
 	if (str[j] != '/') throw std::runtime_error(to_string(ln2) + ": location path must begin with a '/'");
-	while (!std::isspace(str[j] && j != i)) j++;
+	while (!std::isspace(str[j]) && j != i) j++;
 	if (j == i) return true;
-	while (std::isspace(str[j] && j != i)) j++;
+	while (std::isspace(str[j]) && j != i) j++;
 	if (j == i) return true;
 	throw std::runtime_error(to_string(ln2) + ": only whitespaces are allowed between location path and '{'");
 }
@@ -84,18 +87,20 @@ static void check_braces(const std::string& str, std::size_t line_num)
 	while (i < str.length())
 	{
 		std::size_t j = std::string(&str[i]).find("server");
-		if (j == std::string::npos) j = str.length();
+		if (j == std::string::npos) j = str.length(); else j += i;
 		while (i < j) {
 			if (str[i] == '\n') ln2++;
 			if (!std::isspace(str[i])) throw std::runtime_error(to_string(ln2) + ": global statement is not 'server'");
 			i++;
 		}
+		if (i == str.length()) return; // parsed everything until the end
 		i += std::string("server").length();
 		j = std::string(&str[i]).find("{");
 		if (j == std::string::npos) j = str.length(); else j += i;
 		while (i < j) {
 			if (str[i] == '\n') ln2++;
-			if (!std::isspace(str[i])) throw std::runtime_error(to_string(ln2) + ": global 'server' statement not followed by '{'");
+			if (!std::isspace(str[i]))
+				throw std::runtime_error(to_string(ln2) + ": global 'server' statement not followed by '{'");
 			i++;
 		}
 		j = get_end_server_block(str, i, ln2); //i is on '{' here
@@ -112,15 +117,18 @@ std::vector<config> init_configs(const std::string& file_path)
 	check_braces(str, line_num);
 	//here server blocks and location blocks are good.
 	//still need to fill vector and check if statements are valid.
-	return std::vector<config>();
+	std::vector<config> config_vec = get_config_vector(str, line_num);
+	return config_vec;
 }
 
 int main()
 {
 	std::string path = "./default.conf";
+	std::vector<config> vec;
 	try {
-	init_configs(path);
+		vec = init_configs(path);
 	} catch (std::exception& e) {
 		std::cerr << "Error in " + path + ":\n\t" + e.what() + "\n";
 	}
+	for (std::size_t i = 0; i < vec.size(); i++) log(vec[i]);
 }
