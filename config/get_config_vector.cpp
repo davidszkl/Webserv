@@ -2,6 +2,7 @@
 #include "to_string.hpp"
 #include "debug.hpp"
 #include <vector>
+#include <cctype>
 #include <string>
 #include <algorithm>
 
@@ -13,6 +14,47 @@ static std::string get_statement(const std::string& str, std::size_t i)
 	return str.substr(i, j);
 }
 
+//cpp version of ft_split with any whitespace as delimiter
+static std::vector<std::string> split(const std::string& statement)
+{
+	using std::string;
+	using std::isspace;
+
+	std::vector<std::string> ret_val;
+	std::size_t i = 0;
+	while (i < statement.length())
+	{
+		while (i < statement.length() && isspace(statement[i]))
+			i++;
+		if (i == statement.length())
+			return ret_val;
+		std::size_t j = i;
+		while (j < statement.length() && !isspace(statement[j]))
+			j++;
+		ret_val.push_back(statement.substr(i, j));
+		i = j;
+	}
+	return ret_val;
+}
+
+// checks if statement is correct
+// level == 0 -> checks for statements in server block
+// level == 1 -> checks for statements in location block
+bool is_valid_statement(const std::vector<std::string>& split_statement, int level)
+{
+	(void)split_statement;
+	(void)level;
+	logn("WARNING: is_valid_statement is not done yet!");
+	return true;
+}
+
+void set_statement(config& c, const std::vector<std::string>& split_statement)
+{
+	(void)c;
+	(void)split_statement;
+	logn("WARNING: get_statement is not done yet!");
+}
+
 //str is substring containing server body without the '{' and '}'
 static config init_server_conf(const std::string& str, std::size_t line_num)
 {
@@ -21,9 +63,9 @@ static config init_server_conf(const std::string& str, std::size_t line_num)
 	while (i < str.length())
 	{
 		std::string statement = get_statement(str, i);
-		std::vector<std::string> statement_split = split_statement(statement);
-		if (!is_valid_statement(split_statement))
-			throw std::runtime_error(to_string(line_num + std::count(str, '\n')) + ": invalid statement in server block");
+		std::vector<std::string> split_statement = split(statement);
+		if (!is_valid_statement(split_statement, 0)) //0 for server block
+			throw std::runtime_error(to_string(line_num + std::count(str.begin(), str.end(), '\n')) + ": invalid statement in server block");
 		set_statement(c, split_statement);
 		i += statement.length() + 1;
 	}

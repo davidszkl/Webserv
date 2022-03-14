@@ -1,3 +1,4 @@
+#include "to_string.hpp"
 #include "config.hpp"
 #include "debug.hpp"
 #include <unistd.h>
@@ -25,7 +26,7 @@ std::ostream& operator <<(std::ostream& o, const config& c)
 	o << "======config of " + c.server_name + ":" << c.port << "======\n";
 	o << "max_body: " << c.max_body << '\n';
 	o << "error_pages:\n";
-	for (config::mapcit it = c.error_pages.cbegin(); it != c.error_pages.cend(); it++)
+	for (config::mapcit it = c.error_pages.begin(); it != c.error_pages.end(); it++)
 		o << it->first << ": " << it->second << '\n';
 	o << "location_blocks:\n";
 	for (std::size_t i = 0; i < c.location_blocks.size(); i++)
@@ -44,12 +45,8 @@ config::config()
 {
 	logn("WARNING: error_pages are not correctly initialized (TODO)");
 	const std::string default_error_path = "./server_files/";
-	for(mapit it = error_pages.begin(); it != error_pages.end(); i++)
-	{
-		error_pages[i].first = 42;
-		error_pages[i].second = default_error_path + "42.html";
-	}
-
+	for(int i = 0; i < 5; i++)
+		error_pages[i] = default_error_path + to_string(i) + ".html";
 }
 
 config::location::location()
