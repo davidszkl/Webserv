@@ -160,21 +160,23 @@ bool is_post(std::string str) {
 	return false;
 }
 
-void webserver::request_handler(const pollfd & fd, const server & server) {
+void webserver::request_handler(const pollfd & fd, server & server) {
 	init_request();
-	cerr << "======URL MESSAGE========" << endl;
-	cerr << _http_request._uri << endl;
-	if (_http_request._full_request == "stop" || \
-		_http_request._uri == "/stop") {
-		_server_alive = false;
-		cerr << "STOP CALLED" << endl;
-		return ;
-	}
 	if (!_http_request._method.size() || !_http_request._uri.size() || !_http_request._version.size()) {
 		_response_code = BAD_REQUEST;
 		send_response(fd, "", false);
 	}
-	if (_http_request._method		== "GET")
+	else if (_http_request._uri.size() > 1024)
+	{
+		_response_code = REQUEST_URI_TOO_LONG;
+		send_response(fd, "", false);
+	}
+	else if (_http_request._version != "HTTP/1.1")
+	{
+		_response_code = HTTP_VERSION_NOT_SUPPORTED;
+		send_response(fd, "", false);
+	}
+	else if (_http_request._method	== "GET")
 		handle_GET(fd, server);
 	else if (_http_request._method	== "POST")
 		handle_POST(fd);
@@ -182,20 +184,26 @@ void webserver::request_handler(const pollfd & fd, const server & server) {
 		handle_DELETE(fd);
 	else {
 		_response_code = NOT_IMPLEMENTED;
-		send_response(fd, server._501_page, true);
+		send_response(fd, server._error_pages[NOT_IMPLEMENTED], true);
 	}
 }
 
-int	webserver::handle_GET(const pollfd &fd, const server & server) {
+int	webserver::handle_GET(const pollfd &fd, server & server) {
 	bool body					= true;
-	std::string response_file	= _http_request._path;
-	if (!file_exists(_http_request._path)) {
+	std::string& response_file	= _http_request._path;
+
+	if (std::find	(server._allowed_methods.begin(), server._allowed_methods.end(), "GET") == server._allowed_methods.end())
+	{
+		_response_code = METHOD_NOT_ALLOWED;
+		response_file = server._error_pages[METHOD_NOT_ALLOWED];
+	}
+	else if (!file_exists(_http_request._path)) {
 		_response_code = NOT_FOUND;
-		response_file = server._404_page;
+		response_file = server._error_pages[NOT_FOUND];
 	}
 	else if (_http_request._path.find("server_files") == std::string::npos) {
 		_response_code = FORBIDDEN;
-		response_file = server._403_page;
+		response_file = server._error_pages[FORBIDDEN];
 	}
 	else
 		_response_code = OK;
