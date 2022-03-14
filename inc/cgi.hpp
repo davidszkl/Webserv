@@ -5,8 +5,7 @@
 	checks if http message (header + body) is valid for a cgi response.
 	full_message is the whole http message received from the client.
 	root is the root of the server.
-	Return 1 on success, 0 on failure and 415 if valid but unsupported Content-Type;
-	If return 415, you should send 415 error page
+	Return 1 on success, 0 on failure or the number of error (415, 411, 413, ...);
  */
 int is_valid_for_cgi(const std::string& full_message, std::string root, const std::string& location);
 

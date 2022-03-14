@@ -66,8 +66,7 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
 	checks if http message (header + body) is valid for a cgi response.
 	full_message is the whole http message received from the client.
 	root is the root of the server.
-	Return 1 on success, 0 on failure and 415 if valid but unsupported Content-Type;
-	If return 415, you should send 415 error page
+	Return 1 on success, 0 on failure or error page number
  */
 int is_valid_for_cgi(const std::string& full_message, std::string root, const std::string& location)
 {
@@ -106,7 +105,7 @@ int is_valid_for_cgi(const std::string& full_message, std::string root, const st
 		if (content_length == "")
 		{
 			logn("No Content-Length in header. is_valid_for cgi is returning false");
-			return false;
+			return 411;
 		}
 		std::size_t cl;
 		try{
@@ -118,8 +117,8 @@ int is_valid_for_cgi(const std::string& full_message, std::string root, const st
 		}
 		if (full_message.find("\r\n\r\n") + cl + 4 >= full_message.length())
 		{
-			logn("Content-Length too large is_valid_for_cgi returns false");
-			return false;
+			logn("Content-Length too large");
+			return 413;
 		}
 	}
 	logn("http message is valid for cgi");

@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 #include <iostream>
+#include <map>
 
 /*
    config of a server instance.
@@ -14,6 +15,8 @@
 class config
 {
 	public:
+		typedef std::map<int, std::string>::iterator mapit;
+		typedef std::map<int, std::string>::const_iterator mapcit;
 		class location {
 			public:
 				std::string path; // contains location path last '/' will be removed
@@ -32,13 +35,13 @@ class config
 		std::string server_name;
 		unsigned short port;
 		std::size_t max_body;
-		std::pair<int, std::string> error_pages[5]; // error number, path/to/file
+		std::map<int, std::string> error_pages; // error number, path/to/file
 		std::vector<location> location_blocks;
 
 		config();
-};
 
-std::ostream& operator <<(std::ostream& o, const config::location& c);
-std::ostream& operator <<(std::ostream& o, const config& c);
+		friend std::ostream& operator <<(std::ostream& o, const config::location& c);
+		friend std::ostream& operator <<(std::ostream& o, const config& c);
+};
 
 
