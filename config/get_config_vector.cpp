@@ -1,17 +1,32 @@
 #include "config.hpp"
-#include "to_string.hpp"
+#include "string_utils.hpp"
 #include "debug.hpp"
 #include <vector>
 #include <cctype>
 #include <string>
 #include <algorithm>
 
-//eturn statement (does not clean any whitespaces) without trailing ';'
+//return statement (does not clean any whitespaces) without trailing ';'
 //str[i] wil be == to return_value[0]
 static std::string get_statement(const std::string& str, std::size_t i)
 {
 	std::size_t j = std::string(&str[i]).find(";");	
+	if (j == std::string::npos)
+		j = std::string(&str[i]).length();
 	return str.substr(i, j);
+}
+
+//return location {...} (does not clean any whitespaces)
+//str[i] wil be == to return_value[0]
+static std::string get_location(const std::string& str, std::size_t i)
+{
+	std::size_t j = std::string(&str[i]).find("}");	
+	if (j == std::string::npos)
+		j = std::string(&str[i]).length();
+	else
+		j++;
+	return str.substr(i, j);
+	
 }
 
 //cpp version of ft_split with any whitespace as delimiter
@@ -37,22 +52,138 @@ static std::vector<std::string> split(const std::string& statement)
 	return ret_val;
 }
 
+// is_valid_statement but server only
+static bool is_valid_server_statement(const std::vector<std::string>& statement)
+{
+	if (statement[0] == "error_page" && statement.size() == 3)
+	{
+		try {
+			int i = my_stoi(statement[1]);
+			if (i < 0)
+				throw std::runtime_error("invlid error page number");
+		} catch (...) {
+			return false;
+		}
+		return true;
+	}
+	if (statement.size() != 2) return false;
+	if (statement[0] == "server_name") return true;
+	if (statement[0] == "listen")
+	{
+		try {
+			int i = my_stoi(statement[1]);
+			if (i <= 0 || i > 65535)
+				throw std::runtime_error("invalid port number");
+		} catch (...) {
+			return false;
+		}
+		return true;
+	}
+	if (statement[0] == "client_max_body_size")
+	{
+		try {
+			int i = my_stoi(statement[1]);
+			if (i < 0)
+				throw std::runtime_error("invlid error page number");
+
+		} catch (...) {
+			return false;
+		}
+		return true;
+	}
+	return false;
+}
+
+// is_valid_statement but location only
+static bool is_valid_location_statement(const std::vector<std::string>& statement)
+{
+	if (statement.size() != 2) return false;
+
+	const std::string& s = statement[0];
+	if (s == "autoindex" && statement[1] != "on" && statement[1] != "off")
+		return false;
+	if (s == "use" || s == "redirect"
+		|| s == "root" || s == "autoindex"
+		|| s == "index" || s == "upload_pass")
+		return true;
+	return false;
+}
+
+
 // checks if statement is correct
 // level == 0 -> checks for statements in server block
 // level == 1 -> checks for statements in location block
-bool is_valid_statement(const std::vector<std::string>& split_statement, int level)
+static bool is_valid_statement(const std::vector<std::string>& split_statement, int level)
 {
-	(void)split_statement;
-	(void)level;
-	logn("WARNING: is_valid_statement is not done yet!");
+	if (level == 0)
+		return is_valid_server_statement(split_statement);
+	if (level == 1)
+		return is_valid_location_statement(split_statement);
+	return false;
+}
+
+//set statement for server scope
+static void set_statement(config& c, const std::vector<std::string>& statement)
+{
+	const std::string& s = statement[0];
+	if (s == "server_name")
+		c.server_name = statement[1];
+	if (s == "listen")
+		c.port = my_stoi(statement[1]);
+	if (s == "error_page")
+		c.error_pages[my_stoi(statement[1])] = statement[2];
+	if (s == "client_max_body_size")
+		c.max_body = my_stoi(statement[1]);
+}
+
+//set statement for location scope
+static void set_statement(config::location& l, const std::vector<std::string>& statement)
+{
+	const std::string& s0 = statement[0];
+	const std::string& s1 = statement[1];
+
+	if (s0 == "use")
+		l.allowed_methods.push_back(s1);
+	if (s0 == "redirect")
+		l.redirect = s1;
+	if (s0 == "root")
+		l.root = s1;
+	if (s0 == "autoindex")
+		l.autoindex = (s1 == "on");
+	if (s0 == "index")
+		l.index = s1;
+	if (s0 == "upload_pass")
+		l.upload_dir = s1;
+}
+
+// checks if ret val of get_statement is a location block
+static bool is_location(const std::string& statement)
+{
+	std::size_t i = 0;
+	while (i < statement.length() && std::isspace(statement[i]))
+		i++;
+	if (i == statement.length()) return false;
+	std::string tmp(&statement[i]);
+	if (!(tmp.length() >= 9
+				&& tmp.substr(0, 8) == "location"
+				&& (std::isspace(tmp[8]) || tmp[8] == '{')))
+		return false;
+	i += 8;
+	while (i < statement.length() && std::isspace(statement[i]))
+		i++;
+	if (i == statement.length() || statement[i] != '{') return false;
+	if (std::string(&statement[i]).find('}') == std::string::npos)
+		throw std::runtime_error("location block not closed");
 	return true;
 }
 
-void set_statement(config& c, const std::vector<std::string>& split_statement)
+//gets location {...} returns ...
+static std::string unwrap_location(const std::string str)
 {
-	(void)c;
-	(void)split_statement;
-	logn("WARNING: get_statement is not done yet!");
+	std::size_t i = str.find('{');
+	i++;
+	std::size_t j = std::string(&str[i]).rfind('}');
+	return str.substr(i, j);
 }
 
 //str is substring containing server body without the '{' and '}'
@@ -63,6 +194,14 @@ static config init_server_conf(const std::string& str, std::size_t line_num)
 	while (i < str.length())
 	{
 		std::string statement = get_statement(str, i);
+		if (is_location(statement))
+		{
+			std::string locstr = get_location(str, i);
+			config::location l;
+			init_location(unwrap_location(locstr), l);
+			c.location_blocks.push_back(l);
+			i += locstr.length();.
+		}
 		std::vector<std::string> split_statement = split(statement);
 		if (!is_valid_statement(split_statement, 0)) //0 for server block
 			throw std::runtime_error(to_string(line_num + std::count(str.begin(), str.end(), '\n')) + ": invalid statement in server block");

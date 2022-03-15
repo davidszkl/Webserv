@@ -6,7 +6,7 @@
 #include <sstream>
 #include <cctype>
 #include <cstdlib>
-#include "to_string.hpp"
+#include "string_utils.hpp"
 
 std::vector<config> get_config_vector(const std::string& str, std::size_t line_num);
 

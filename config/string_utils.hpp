@@ -1,3 +1,4 @@
+#pragma once
 #include <string>
 #include <sstream>
 
@@ -9,3 +10,4 @@ std::string to_string(const T& p)
 	return ss.str();
 }
 
+int my_stoi(const std::string& text);
