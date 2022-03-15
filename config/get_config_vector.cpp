@@ -46,7 +46,7 @@ static std::vector<std::string> split(const std::string& statement)
 		std::size_t j = i;
 		while (j < statement.length() && !isspace(statement[j]))
 			j++;
-		ret_val.push_back(statement.substr(i, j));
+		ret_val.push_back(statement.substr(i, j - i));
 		i = j;
 	}
 	return ret_val;
@@ -171,19 +171,52 @@ static bool is_location(const std::string& statement)
 	i += 8;
 	while (i < statement.length() && std::isspace(statement[i]))
 		i++;
+	while (i < statement.length() && !std::isspace(statement[i]))
+		i++;
+	while (i < statement.length() && std::isspace(statement[i]))
+		i++;
 	if (i == statement.length() || statement[i] != '{') return false;
-	if (std::string(&statement[i]).find('}') == std::string::npos)
-		throw std::runtime_error("location block not closed");
 	return true;
 }
 
 //gets location {...} returns ...
-static std::string unwrap_location(const std::string str)
+static std::string unwrap_location(const std::string str, std::string& location_path)
 {
 	std::size_t i = str.find('{');
 	i++;
 	std::size_t j = std::string(&str[i]).rfind('}');
+	
+	std::size_t v1 = i-2;
+	while (std::isspace(str[v1]))
+		v1--;
+	std::size_t v2 = v1;
+	v1++;
+	while (!std::isspace(str[v2]))
+		v2--;
+	v2++;
+	location_path = str.substr(v2, v1 - v2);
 	return str.substr(i, j);
+}
+
+//str is substring containing location body without the '{' and '}'
+static config::location init_location_conf(const std::string& str, std::size_t line_num)
+{
+	config::location l;
+	std::size_t i = 0;
+	while (i < str.length() && !is_only_whitespaces(std::string(&str[i])))
+	{
+		std::string statement = get_statement(str, i);
+		std::vector<std::string> split_statement = split(statement);
+		if (!is_valid_statement(split_statement, 1)) //1 for location block
+		{
+			if (split_statement.size() == 0) split_statement.push_back("empty statement");
+			throw std::runtime_error(to_string(line_num + std::count(str.begin(), str.end(), '\n')) + ": invalid statement in location block (" + split_statement[0] + ")");
+		}
+		set_statement(l, split_statement);
+		i += statement.length() + 1;
+	}
+	return l;
+
 }
 
 //str is substring containing server body without the '{' and '}'
@@ -191,20 +224,24 @@ static config init_server_conf(const std::string& str, std::size_t line_num)
 {
 	config c;
 	std::size_t i = 0;
-	while (i < str.length())
+	while (i < str.length() && !is_only_whitespaces(std::string(&str[i])))
 	{
 		std::string statement = get_statement(str, i);
 		if (is_location(statement))
 		{
 			std::string locstr = get_location(str, i);
-			config::location l;
-			init_location(unwrap_location(locstr), l);
+			std::string location_path;
+			config::location l = init_location_conf(unwrap_location(locstr, location_path), line_num);
+			l.path = location_path;
 			c.location_blocks.push_back(l);
-			i += locstr.length();.
+			i += locstr.length();
 		}
 		std::vector<std::string> split_statement = split(statement);
 		if (!is_valid_statement(split_statement, 0)) //0 for server block
-			throw std::runtime_error(to_string(line_num + std::count(str.begin(), str.end(), '\n')) + ": invalid statement in server block");
+		{
+			if (split_statement.size() == 0) split_statement.push_back("empty statement");
+			throw std::runtime_error(to_string(line_num + std::count(str.begin(), str.end(), '\n')) + ": invalid statement in server block" + "(" + split_statement[0] + ")");
+		}
 		set_statement(c, split_statement);
 		i += statement.length() + 1;
 	}

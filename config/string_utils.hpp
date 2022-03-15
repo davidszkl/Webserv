@@ -11,3 +11,7 @@ std::string to_string(const T& p)
 }
 
 int my_stoi(const std::string& text);
+
+//s == "  \n\t  " -> true
+//s == " i \n\t  " -> false
+bool is_only_whitespaces(const std::string& s);

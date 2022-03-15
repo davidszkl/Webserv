@@ -1,6 +1,7 @@
 #include <string>
 #include <sstream>
 #include <exception>
+#include <cctype>
 
 int my_stoi(const std::string& text)
 {
@@ -11,4 +12,14 @@ int my_stoi(const std::string& text)
 		throw std::runtime_error("stoi failed");
 	}
 	return number;
+}
+
+//s == "  \n\t  " -> true
+//s == " i \n\t  " -> false
+bool is_only_whitespaces(const std::string& s)
+{
+	for (std::size_t i = 0; i < s.length(); i++)
+		if (!std::isspace(s[i]))
+				return false;
+	return true;
 }
