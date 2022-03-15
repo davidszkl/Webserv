@@ -39,14 +39,27 @@ public:
 		server_exception(const char* what) : runtime_error(what) {}
 	};
 
-	void test_alive() const;
-private:
+	class location {
+		std::string _path;			// contains location path last '/' will be removed
+		std::string _root;			// empty if none
+		std::string _index;			//empty if none
+		std::string _redirect;		// empty if no redirect
+		std::string _upload_dir;	//empty if upload not permitted
+		std::vector<std::string> _allowed_methods;
+		bool		_autoindex;
+		location();
+	};
 
-	friend class webserver;
-	
+private:
+	std::string server_name;
 	sockaddr_in		_server_addr;
 	int				_sockfd;
-	int				_port;
-	std::vector<std::string>			_allowed_methods;
+	unsigned short	_port;
+	size_t			_max_body;
 	std::map<const int, std::string>	_error_pages;
+	std::vector<location>				_location_blocks;
+
+	friend class webserver;
 };
+
+server::location::location() {_autoindex = false;}

@@ -68,7 +68,3 @@ server::~server()
 	cerr	<< "server destructor for port " << _port << "\n" \
 			<< "                    socket " << _sockfd << endl;
 }
-
-void server::test_alive() const {
-	cout << "server listening on port " << _port << " alive\n";
-}

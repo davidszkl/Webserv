@@ -192,7 +192,7 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	bool body					= true;
 	std::string& response_file	= _http_request._path;
 
-	if (std::find	(server._allowed_methods.begin(), server._allowed_methods.end(), "GET") == server._allowed_methods.end())
+	if (std::find(server._allowed_methods.begin(), server._allowed_methods.end(), "GET") == server._allowed_methods.end())
 	{
 		_response_code = METHOD_NOT_ALLOWED;
 		response_file = server._error_pages[METHOD_NOT_ALLOWED];
