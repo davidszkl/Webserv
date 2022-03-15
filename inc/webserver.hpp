@@ -74,9 +74,9 @@ public:
 	void	clear_request();
 	int		handle_GET(const pollfd &fd, server & server);
 	int		handle_POST(const pollfd &fd);
-	int		handle_DELETE(const pollfd &fd);
+	int		handle_DELETE(const pollfd &fd, server & server);
 	void	send_response(const pollfd &fd, std::string filename, bool error);
-	void	send_partial_response(const pollfd &fd, std::string filename, size_t size, std::pair<size_t, size_t> boundary);
+	bool	is_deletable(server & server, const std::string& filename) const;
 	std::string get_code_description(int code) const;
 
 	class webserver_exception : public std::runtime_error
@@ -118,5 +118,3 @@ std::string my_get_line(std::string from );
 std::string i_to_str(int nbr);
 std::string slurp_file(std::string file);
 std::string read_header_line(std::string from);
-int			is_partial_request(std::vector<std::string> header_lines);
-std::pair<size_t, size_t> get_partial_size(std::string header_line);

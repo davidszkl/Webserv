@@ -40,6 +40,8 @@ public:
 	};
 
 	class location {
+		friend class server;
+		friend class webserver;
 		std::string _path;			// contains location path last '/' will be removed
 		std::string _root;			// empty if none
 		std::string _index;			//empty if none
@@ -47,9 +49,10 @@ public:
 		std::string _upload_dir;	//empty if upload not permitted
 		std::vector<std::string> _allowed_methods;
 		bool		_autoindex;
-		location();
+		location() {_autoindex = false;};
 	};
 
+	typedef std::map<const int, std::string>::iterator map_it;
 private:
 	std::string server_name;
 	sockaddr_in		_server_addr;
@@ -61,5 +64,3 @@ private:
 
 	friend class webserver;
 };
-
-server::location::location() {_autoindex = false;}

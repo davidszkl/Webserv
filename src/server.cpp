@@ -2,15 +2,19 @@
 
 server::server(const int port): _port(port)
 {
+	location dummy;
+	dummy._allowed_methods.push_back("GET");
+	dummy._allowed_methods.push_back("POST");
+	dummy._allowed_methods.push_back("DELETE");
+	dummy._autoindex = false;
+	dummy._index = "server_files/index.html";
+	_location_blocks.push_back(dummy);
 	_error_pages[401] = "server_files/401_page";
 	_error_pages[403] = "server_files/403_page";
 	_error_pages[404] = "server_files/404_page";
 	_error_pages[405] = "server_files/405_page";
 	_error_pages[501] = "server_files/501_page";
 	_error_pages[503] = "server_files/503_page";
-	_allowed_methods.push_back("GET");
-	_allowed_methods.push_back("POST");
-	_allowed_methods.push_back("DELETE");
 	_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_sockfd < 0)
 		throw server_exception("Socket creation failed.\nShutting down server.\n");
