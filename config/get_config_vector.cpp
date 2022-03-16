@@ -235,6 +235,7 @@ static config init_server_conf(const std::string& str, std::size_t line_num)
 			l.path = location_path;
 			c.location_blocks.push_back(l);
 			i += locstr.length();
+			continue;
 		}
 		std::vector<std::string> split_statement = split(statement);
 		if (!is_valid_statement(split_statement, 0)) //0 for server block

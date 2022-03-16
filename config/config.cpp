@@ -14,7 +14,7 @@ std::ostream& operator <<(std::ostream& o, const config::location& c)
 	o << '>' << "autoindex: " << c.autoindex << '\n';
 	o << '>' << "allowed_methods:";
 	for(std::size_t i = 0; i < c.allowed_methods.size(); i++)
-		o << ' ' << i << ": " << c.allowed_methods[i];
+		o << ' ' << i << ":" << c.allowed_methods[i];
 	o << '\n';
 	o << '>' << "redirect: " << c.redirect << '\n';
 	o << '>' << "upload_dir: " << c.upload_dir << '\n';
