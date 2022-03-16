@@ -44,4 +44,4 @@ class config
 		friend std::ostream& operator <<(std::ostream& o, const config& c);
 };
 
-
+std::vector<config> init_configs(const std::string& file_path);

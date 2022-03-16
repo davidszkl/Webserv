@@ -110,6 +110,18 @@ static void check_braces(const std::string& str, std::size_t line_num)
 	}
 }
 
+static void check_config_vector(const std::vector<config>& cv)
+{
+	typedef std::pair<std::string, int> psi;
+	for (std::size_t i = 0; i < cv.size(); i++)
+	{	
+		psi host_port = psi(cv[i].server_name, cv[i].port);
+		for (std::size_t j = 0; j < cv.size(); j++)
+			if (j != i && host_port == psi(cv[j].server_name, cv[j].port))
+				throw std::runtime_error("Two or more servers with the same server_name and port");
+	}
+}
+
 std::vector<config> init_configs(const std::string& file_path)
 {
 	std::string str = get_file_content(file_path);
@@ -118,17 +130,8 @@ std::vector<config> init_configs(const std::string& file_path)
 	//here server blocks and location blocks are good.
 	//still need to fill vector and check if statements are valid.
 	std::vector<config> config_vec = get_config_vector(str, line_num);
+	//config vector is initialized. Still need to check if it's possible or not (e.g.: duplicate hostname:port)
+	check_config_vector(config_vec);
 	return config_vec;
 }
 
-int main()
-{
-	std::string path = "./default.conf";
-	std::vector<config> vec;
-	try {
-		vec = init_configs(path);
-	} catch (std::exception& e) {
-		std::cerr << "Error in " + path + ":\n\t" + e.what() + "\n";
-	}
-	for (std::size_t i = 0; i < vec.size(); i++) log(vec[i]);
-}
