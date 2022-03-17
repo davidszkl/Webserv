@@ -7,13 +7,23 @@ enum error_codes {
 
 int main()
 {
+/*==========================	
 	std::vector<int> config;
 	config.push_back(42690);
 	config.push_back(42691);
-	config.push_back(42692);					//config class supplied by mlefevre
+	config.push_back(42692);
+==========================*/
+
+	string path = "./default.conf";
+	vector<config> vec;
+	try {
+		vec = init_configs(path);
+	} catch (std::exception& e) {
+		cerr << "Error in " + path + ":\n\t" + e.what() + "\n";
+	}
 
 	try {
-		webserver main_server(config);			//all servers initialized in webserver constructor
+		webserver main_server(vec);				//all servers initialized in webserver constructor
 		main_server.listen_all();				//main function listening on all servers
 	}
 	catch (server::server_exception &e) {		//one of the servers couldn't be initialized

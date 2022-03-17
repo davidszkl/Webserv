@@ -10,16 +10,16 @@ void server_shutdown(int signbr) {
 }
 //TO_ERASE
 
-webserver::webserver(std::vector<int> config):	_socklen(sizeof(_client_addr)), _root("server_files"), _response_code(404)
+webserver::webserver(vector<config> config_vector):	_response_code(404), _socklen(sizeof(_client_addr))
 {
 	signal(SIGINT, &server_shutdown);
 	_server_alive = true;
 	memset(&_pollfd, 0, sizeof(_pollfd));
 	_pollfd.fd	= -1;
 	try {
-		_servers.reserve(config.size());				//don't call all destructors every time a server is added
-		for (size_t n = 0; n < config.size(); n++)
-			_servers.push_back(server(config[n]));		//see ~webserv()
+		_servers.reserve(config_vector.size());				//don't call all destructors every time a server is added
+		for (size_t n = 0; n < config_vector.size(); n++)
+			_servers.push_back(server(config_vector[n]));	//see ~webserv()
 	}
 	catch (...) {
 		throw ;
@@ -28,10 +28,10 @@ webserver::webserver(std::vector<int> config):	_socklen(sizeof(_client_addr)), _
 
 webserver::~webserver() {
 	cerr << "webserv destructor" << endl;
-	for (size_t n = 0; n < _servers.size(); n++) {		//~webserv() handles closing of server sockets because
+	for (size_t n = 0; n < _servers.size(); n++) {					//~webserv() handles closing of server sockets because
 		if (_servers[n]._sockfd)
 		{
-			cerr << "CLOSING FD " << _servers[n]._sockfd << endl;					//vector calls server destructor all the time
+			cerr << "CLOSING FD " << _servers[n]._sockfd << endl;	//vector calls server destructor all the time
 			close(_servers[n]._sockfd);
 		}
 	}
@@ -127,7 +127,7 @@ int webserver::read_msg(int fd) {;
 	int end = 0;
 	clear_request();
 	cerr << "Receiving message:\n";
-	while(!find_crlf(std::string(buffer)))
+	while(!find_crlf(string(buffer)))
 	{
 		end = recv(fd, &buffer, 100, 0);
 		if (end < 0)
@@ -138,7 +138,7 @@ int webserver::read_msg(int fd) {;
 	if (is_post(_http_request._full_request))
 	{
 		_content_length = std::atoi(get_header_info(_http_request._full_request, "Content-Length").c_str());
-		while(!find_crlf(std::string(buffer)))
+		while(!find_crlf(string(buffer)))
 		{
 			end = recv(fd, &buffer, 100, 0);
 			if (end < 0)
@@ -151,19 +151,19 @@ int webserver::read_msg(int fd) {;
 	return 0;
 }
 
-bool find_crlf(std::string str) {
-	if (str.find("\r\n\r\n") != std::string::npos)
+bool find_crlf(string str) {
+	if (str.find("\r\n\r\n") != string::npos)
 		return true;
 	return false;
 }
 
-bool is_post(std::string str) {
-	if (str.find("POST") != std::string::npos)
+bool is_post(string str) {
+	if (str.find("POST") != string::npos)
 		return true;
 	return false;
 }
 
-void webserver::request_handler(const pollfd & fd, const server & server) {
+void webserver::request_handler(const pollfd & fd, server & server) {
 	init_request();
 	cerr << "======URL MESSAGE========" << endl;
 	cerr << _http_request._uri << endl;
@@ -185,20 +185,20 @@ void webserver::request_handler(const pollfd & fd, const server & server) {
 		handle_DELETE(fd);
 	else {
 		_response_code = NOT_IMPLEMENTED;
-		send_response(fd, server._501_page, true);
+		send_response(fd, server._error_pages[NOT_IMPLEMENTED], true);
 	}
 }
 
-int	webserver::handle_GET(const pollfd &fd, const server & server) {
+int	webserver::handle_GET(const pollfd &fd, server & server) {
 	bool body					= true;
-	std::string response_file	= _http_request._path;
+	string response_file	= _http_request._path;
 	if (!file_exists(_http_request._path)) {
 		_response_code = NOT_FOUND;
-		response_file = server._404_page;
+		response_file = server._error_pages[NOT_FOUND];
 	}
-	else if (_http_request._path.find("server_files") == std::string::npos) {
+	else if (_http_request._path.find("server_files") == string::npos) {
 		_response_code = FORBIDDEN;
-		response_file = server._403_page;
+		response_file = server._error_pages[FORBIDDEN];
 	}
 	else
 		_response_code = OK;
@@ -208,7 +208,6 @@ int	webserver::handle_GET(const pollfd &fd, const server & server) {
 
 int	webserver::handle_POST(const pollfd &fd) {
 	cerr << "POST handler for " << fd.fd << endl;
-	//CODE 201
 	return 0;
 }
 
@@ -217,8 +216,8 @@ int	webserver::handle_DELETE(const pollfd &fd) {
 	return 0;
 }
 
-void webserver::send_response(const pollfd &fd, std::string filename, bool body) {
-	std::string http_response;
+void webserver::send_response(const pollfd &fd, string filename, bool body) {
+	string http_response;
 	http_response += "HTTP/1.1 ";
 	http_response += i_to_str(_response_code);
 	http_response += get_code_description(_response_code);
@@ -226,10 +225,6 @@ void webserver::send_response(const pollfd &fd, std::string filename, bool body)
 		http_response += "\r\n\r\n";
 		http_response += slurp_file(filename);
 	}
-	if (filename != "favicon.ico")
-		cerr << "RESPONSE\n" << http_response << endl; 
-	else
-		cerr << "RESPONSE IS FAVICON" << endl;
 	send(fd.fd, http_response.c_str(), http_response.size(), 0);
 }
 
@@ -243,8 +238,8 @@ void webserver::init_request() {
 	size_t cursor = 0;
 	while(1)
 	{
-		std::string str_from(&_http_request._header[cursor]);
-		std::string line = read_header_line(&_http_request._header[cursor]);
+		string str_from(&_http_request._header[cursor]);
+		string line = read_header_line(&_http_request._header[cursor]);
 		cursor += line.size();
 		_http_request._header_lines.push_back(line);
 		if (line == "\r\n" || !line.size())
@@ -253,11 +248,8 @@ void webserver::init_request() {
 	std::stringstream ss(_http_request._header_lines[0]);
 	ss >> _http_request._method;
 	ss >> _http_request._uri;
-	_http_request._path = _root + _http_request._uri;
-	cerr << "URI\n" << _http_request._uri << endl;
-	cerr << "PATH\n" << _http_request._path << endl;
 	ss >> _http_request._version;
-	cerr << "_http_request._header:\n"	<< _http_request._header << endl;
+	_http_request._path = _root + _http_request._uri;
 }
 
 void webserver::clear_errors() {						//clear servers that got shutdown for some reason
@@ -273,16 +265,12 @@ void webserver::clear_errors() {						//clear servers that got shutdown for some
 	}
 }
 
-// bool find_end_of_body(std::string str) {
-
-// }
-
-inline bool file_exists (const std::string& name) {
+inline bool file_exists (const string& name) {
     std::ifstream f(name.c_str());
     return f.good();
 }
 
-std::string webserver::get_code_description(int code) const {
+string webserver::get_code_description(int code) const {
 	switch (code) {
 		case OK :
 			return " OK";
@@ -359,37 +347,33 @@ std::string webserver::get_code_description(int code) const {
 	}
 }
 
-std::string slurp_file(std::string file) {
+string slurp_file(string file) {
 	std::ifstream stream(file.c_str());
 	std::stringstream buffer;
 	buffer << stream.rdbuf();
-	std::string file_content(buffer.str());
+	string file_content(buffer.str());
 	if (!(file == "server_files/favicon.ico"))
-	{
-		cout << "WEBPAGE\n" << file_content << endl \
- 			 << "WEBPAGE " << endl;
-	}
+		cout << "WEBPAGE\n" << file_content << endl << "WEBPAGE " << endl;
 	return file_content;
 }
 
-std::string i_to_str(int nbr) {
+string i_to_str(int nbr) {
 	std::stringstream ss;
-    std::string s;
+    string s;
     ss << nbr;
     s = ss.str();
-
     return s;
 }
 
-std::string my_get_line(std::string from ) {
-	std::string to;
+string my_get_line(string from ) {
+	string to;
 	for (size_t n = 0; from[n] && from[n] != '\n'; n++)
 		to += from[n];
 	return to;
 }
 
-std::string read_header_line(std::string from) {
-	std::string str;
+string read_header_line(string from) {
+	string str;
 	for (size_t n = 0; from[n]; n++)
 	{
 		str += from[n];
@@ -427,9 +411,8 @@ void	webserver::clear_request() {
 }
 
 int webserver::get_server_id(int fd_tofind) const {
-	for (size_t n = 1; n < _pollsock.size(); n++) {
+	for (size_t n = 1; n < _pollsock.size(); n++)
 		if (_pollsock[n].fd == fd_tofind)
 			return n - 1;
-	}
 	return -1;
 }
