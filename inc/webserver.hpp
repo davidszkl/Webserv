@@ -70,14 +70,15 @@ public:
 	void	init_pollsock();
 	void	init_request();
 	void	clear_request();
-	void	request_handler(const pollfd & fd, server & server);
-	void	send_response(const pollfd &fd, string filename, bool error);
+	void	request_handler(const pollfd& fd, server& server);
+	void	send_response(const pollfd& fd, string filename, bool error);
+	bool	is_deletable(server& server, const string& filename) const;
 	int		get_fd_ready()			const;
 	int		get_server_id(int fd)	const;
 	int		read_msg(int fd);
-	int		handle_POST(const pollfd &fd);
-	int		handle_DELETE(const pollfd &fd);
-	int		handle_GET(const pollfd &fd, server & server);
+	int		handle_POST(const pollfd& fd);
+	int		handle_DELETE(const pollfd& fd, server& server);
+	int		handle_GET(const pollfd& fd, server& server);
 	string	get_code_description(int code) const;
 
 	class webserver_exception : public std::runtime_error
@@ -111,7 +112,7 @@ private:
 	string			_root;
 };
 
-void 		poll_result(const pollfd & fd);
+void 		poll_result(const pollfd& fd);
 bool		find_crlf(string str);
 bool		is_post(string str);
 bool	 	file_exists (const string& name);

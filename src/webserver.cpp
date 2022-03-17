@@ -165,6 +165,8 @@ bool is_post(string str) {
 
 void webserver::request_handler(const pollfd & fd, server & server) {
 	init_request();
+	cerr << "REQUEST=============\n"	<< _http_request._full_request	<< "REQUEST=============" << endl;
+	cerr << "URI=============\n"		<< _http_request._uri			<< "\nURI=============" << endl;
 	if (!_http_request._method.size() || !_http_request._uri.size() || !_http_request._version.size()) {
 		_response_code = BAD_REQUEST;
 		send_response(fd, "", false);
@@ -184,7 +186,7 @@ void webserver::request_handler(const pollfd & fd, server & server) {
 	else if (_http_request._method	== "POST")
 		handle_POST(fd);
 	else if (_http_request._method	== "DELETE")
-		handle_DELETE(fd);
+		handle_DELETE(fd, server);
 	else {
 		_response_code = NOT_IMPLEMENTED;
 		send_response(fd, server._error_pages[NOT_IMPLEMENTED], true);
@@ -201,6 +203,7 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	// 	response_file = server._error_pages[METHOD_NOT_ALLOWED];
 	// }
 	(void)server;
+	cerr << "requestpath" << _http_request._path << endl;
 	if (!file_exists(_http_request._path)) {
 		_response_code = NOT_FOUND;
 		response_file = server._error_pages[NOT_FOUND];
@@ -211,6 +214,7 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	}
 	else
 		_response_code = OK;
+	cerr << "RESPONSE_FILE\n" << response_file << endl;
 	send_response(fd, response_file, body);
 	return 0;
 }
@@ -220,8 +224,39 @@ int	webserver::handle_POST(const pollfd &fd) {
 	return 0;
 }
 
-int	webserver::handle_DELETE(const pollfd &fd) {
-	cerr << "DELETE handler for " << fd.fd << endl;
+int	webserver::handle_DELETE(const pollfd &fd, server& server) {
+	bool body					= true;
+	std::string& response_file	= _http_request._path;
+
+	// if (std::find(server._location_blocks[0]._allowed_methods.begin(), server._location_blocks[0]._allowed_methods.end(), "DELETE") == server._location_blocks[0]._allowed_methods.end())
+	// {
+	// 	_response_code = METHOD_NOT_ALLOWED;
+	// 	response_file = server._error_pages[METHOD_NOT_ALLOWED];
+	// }
+	if (!file_exists(_http_request._path)) {
+		_response_code = NOT_FOUND;
+		response_file = server._error_pages[NOT_FOUND];
+	}
+	else if (_http_request._path.find("server_files") == std::string::npos) {
+		_response_code = FORBIDDEN;
+		response_file = server._error_pages[FORBIDDEN];
+	}
+	else
+	{
+		if (is_deletable(server, response_file))
+		{
+			_response_code = NO_CONTENT;
+			//remove ressource;
+			body = false;
+		}
+		else
+		{
+			_response_code = FORBIDDEN;
+			response_file = server._error_pages[FORBIDDEN];
+			body = true;
+		}
+	}
+	send_response(fd, response_file, body);
 	return 0;
 }
 
@@ -259,6 +294,7 @@ void webserver::init_request() {
 	ss >> _http_request._uri;
 	ss >> _http_request._version;
 	_http_request._path = _root + _http_request._uri;
+	cerr << "DEBUG\n" << _http_request._path << endl;
 }
 
 void webserver::clear_errors() {						//clear servers that got shutdown for some reason
@@ -424,4 +460,13 @@ int webserver::get_server_id(int fd_tofind) const {
 		if (_pollsock[n].fd == fd_tofind)
 			return n - 1;
 	return -1;
+}
+
+bool	webserver::is_deletable(server & server, const std::string& filename) const {
+	for (server::map_it it = server._error_pages.begin(); it != server._error_pages.end(); it++)
+		if (filename == it->second)
+			return false;
+	if (filename == "favicon.ico")		
+		return false;
+	return true;
 }

@@ -7,18 +7,12 @@ enum error_codes {
 
 int main()
 {
-/*==========================	
-	std::vector<int> config;
-	config.push_back(42690);
-	config.push_back(42691);
-	config.push_back(42692);
-==========================*/
-
 	string path = "./default.conf";
 	vector<config> vec;
 	try {
 		vec = init_configs(path);
-	} catch (std::exception& e) {
+	}
+	catch (std::exception& e) {
 		cerr << "Error in " + path + ":\n\t" + e.what() + "\n";
 	}
 
