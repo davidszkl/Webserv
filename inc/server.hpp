@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <iostream>
 #include <sstream>
+#include <map>
+#include <algorithm>
 
 #include <fcntl.h>
 #include <unistd.h>				//close()
@@ -16,6 +18,7 @@
 #include <arpa/inet.h>			//inet_addr()
 #include <netinet/in.h>			//sockaddr_in
 #include <poll.h>				//poll()
+#include <vector>
 
 #define MAX_ACCEPT_QUEUE 128	//size of the queue for the socket
 
@@ -44,10 +47,6 @@ private:
 	sockaddr_in		_server_addr;
 	int				_sockfd;
 	int				_port;
-	std::string		_401_page;
-	std::string		_403_page;
-	std::string		_404_page;
-	std::string		_405_page;
-	std::string		_501_page;
-	std::string		_503_page;
+	std::vector<std::string>			_allowed_methods;
+	std::map<const int, std::string>	_error_pages;
 };
