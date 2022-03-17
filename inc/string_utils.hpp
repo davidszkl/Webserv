@@ -1,6 +1,6 @@
 #pragma once
-#include <string>
-#include <sstream>
+
+#include "utilities.hpp"
 
 template <class T>
 std::string to_string(const T& p)

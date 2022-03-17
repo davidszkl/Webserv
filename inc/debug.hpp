@@ -1,6 +1,6 @@
 #pragma once
 
-#include <iostream>
+#include "utilities.hpp"
 
 template <class T>
 void log(const T& s) {

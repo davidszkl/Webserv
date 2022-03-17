@@ -1,10 +1,11 @@
 #pragma once
-#include "server.hpp"
-#include <fstream>
-#include "cgi.hpp"
-#include <signal.h>									//TO_ERASE
-#include <cstdlib>
 
+#include "utilities.hpp"
+
+#include "server.hpp"
+#include "cgi.hpp"
+
+#include <signal.h>									//TO_ERASE
 
 enum RESPONSE_CODES {
 	OK					= 200,	//Martin
@@ -48,7 +49,7 @@ enum RESPONSE_CODES {
 	HTTP_VERSION_NOT_SUPPORTED		= 505	//OK
 };
 
-extern bool				_server_alive;
+extern bool	_server_alive;
 
 enum METHODS {
 	GET		= 1,
@@ -61,24 +62,23 @@ class webserver
 public:
 
 	webserver() {};
-	webserver(std::vector<int> config);
+	webserver(vector<config> config_vector);
 	~webserver();
 
 	void	listen_all();
 	void	clear_errors();
 	void	init_pollsock();
+	void	init_request();
+	void	clear_request();
+	void	request_handler(const pollfd & fd, server & server);
+	void	send_response(const pollfd &fd, string filename, bool error);
 	int		get_fd_ready()			const;
 	int		get_server_id(int fd)	const;
 	int		read_msg(int fd);
-	void	request_handler(const pollfd & fd, server & server);
-	void	init_request();
-	void	clear_request();
-	int		handle_GET(const pollfd &fd, server & server);
 	int		handle_POST(const pollfd &fd);
 	int		handle_DELETE(const pollfd &fd);
-	void	send_response(const pollfd &fd, std::string filename, bool error);
-	void	send_partial_response(const pollfd &fd, std::string filename, size_t size, std::pair<size_t, size_t> boundary);
-	std::string get_code_description(int code) const;
+	int		handle_GET(const pollfd &fd, server & server);
+	string	get_code_description(int code) const;
 
 	class webserver_exception : public std::runtime_error
 	{
@@ -88,34 +88,34 @@ public:
 
 	struct http_request
 	{
-		std::string	_full_request;
-		std::string	_header;
-		std::string	_body;
-		std::string _method;
-		std::string _uri;
-		std::string _version;
-		std::string _path;
-		std::vector<std::string> _header_lines;
+		string			_full_request;
+		string			_header;
+		string			_body;
+		string			_method;
+		string			_uri;
+		string			_version;
+		string			_path;
+		vector<string>	_header_lines;
 	};
 	
 private:
 
-	std::vector<server>	_servers;
-	std::vector<pollfd>	_pollsock;
-	sockaddr_in			_client_addr;
-	pollfd				_pollfd;
-	socklen_t			_socklen;
-	http_request		_http_request;
-	std::string			_root;
-	int					_response_code;
-	size_t				_content_length;
+	int				_response_code;
+	vector<server>	_servers;
+	vector<pollfd>	_pollsock;
+	http_request	_http_request;
+	sockaddr_in		_client_addr;
+	socklen_t		_socklen;
+	size_t			_content_length;
+	pollfd			_pollfd;
+	string			_root;
 };
 
 void 		poll_result(const pollfd & fd);
-bool		find_crlf(std::string str);
-bool		is_post(std::string str);
-inline bool file_exists (const std::string& name);
-std::string my_get_line(std::string from );
-std::string i_to_str(int nbr);
-std::string slurp_file(std::string file);
-std::string read_header_line(std::string from);
+bool		find_crlf(string str);
+bool		is_post(string str);
+bool	 	file_exists (const string& name);
+string		my_get_line(string from );
+string		i_to_str(int nbr);
+string		slurp_file(string file);
+string		read_header_line(string from);

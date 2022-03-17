@@ -1,16 +1,12 @@
 #include "server.hpp"
 
-server::server(const int port): _port(port)
+server::server(config conf):
+	_port(conf.port),
+	_max_body(conf.max_body),
+	_server_name(conf.server_name),
+	_error_pages(conf.error_pages),
+	_location_blocks(conf.location_blocks)
 {
-	_error_pages[401] = "server_files/401_page";
-	_error_pages[403] = "server_files/403_page";
-	_error_pages[404] = "server_files/404_page";
-	_error_pages[405] = "server_files/405_page";
-	_error_pages[501] = "server_files/501_page";
-	_error_pages[503] = "server_files/503_page";
-	_allowed_methods.push_back("GET");
-	_allowed_methods.push_back("POST");
-	_allowed_methods.push_back("DELETE");
 	_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_sockfd < 0)
 		throw server_exception("Socket creation failed.\nShutting down server.\n");
@@ -26,7 +22,7 @@ server::server(const int port): _port(port)
 	memset(&_server_addr, 0, sizeof(_server_addr));
 	_server_addr.sin_family			= AF_INET;
 	_server_addr.sin_addr.s_addr	= inet_addr("127.0.0.1");
-	_server_addr.sin_port			= htons(port);
+	_server_addr.sin_port			= htons(_port);
 
 	int temporary = 0;
 	if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &temporary, sizeof(int)) < 0)
