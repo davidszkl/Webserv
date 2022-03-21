@@ -5,6 +5,9 @@
 
 int my_stoi(const std::string& text)
 {
+	for (std::size_t i = 0; i < text.length(); i++)
+		if (!std::isdigit(text[i]))
+			throw std::runtime_error("stoi failed");
 	std::istringstream iss (text);
 	int number;
 	iss >> number;

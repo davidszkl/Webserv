@@ -23,7 +23,7 @@ static std::string get_file_content(const std::string& file_path)
 //return number of lines deleted
 static std::size_t clean_file_head(std::string& str)
 {
-	std::size_t i = 0;
+	std::size_t i = 1;
 	while (1)
 	{
 		if (str[0] == '#')
@@ -110,16 +110,80 @@ static void check_braces(const std::string& str, std::size_t line_num)
 	}
 }
 
-static void check_config_vector(const std::vector<config>& cv)
+static void remove_locations_trailing_slash(config& c)
+{
+	for (std::size_t i = 0; i < c.location_blocks.size(); i++)
+	{
+		std::size_t l = c.location_blocks[i].path.length();
+		if (l != 1 && c.location_blocks[i].path[l - 1] == '/')
+		{
+			logn("removing trailing / of " + c.location_blocks[i].path + " location");
+			c.location_blocks[i].path = c.location_blocks[i].path.substr(0, --l);
+		}
+	}
+}
+
+static void check_duplicate_locations(const config& c)
+{
+	for (std::size_t i = 0; i < c.location_blocks.size(); i++)
+	{
+		for (std::size_t j = i + 1; j < c.location_blocks.size(); j++)
+			if (c.location_blocks[i].path == c.location_blocks[j].path)
+				throw std::runtime_error("duplicate location: " + c.location_blocks[i].path);
+	}
+}
+
+static void check_valid_locations(const config& c)
+{
+	for (std::size_t i = 0; i < c.location_blocks.size(); i++)
+	{
+		const std::string& s = c.location_blocks[i].path;
+		for(std::size_t j = 0; j < s.length(); j++)
+		{
+			if(!(std::isalnum(s[j]) || s[j] == '/' || s[j] == '_'))
+				throw std::runtime_error("Invalid character '" + s.substr(j, 1) + "' in location: " + s);
+		}
+		if (s.find("//") != std::string::npos)
+				throw std::runtime_error("Consecutive '/' in location: " + s);
+	}	
+}
+
+static void check_methods_in_locations(const config& c)
+{
+	for (std::size_t i = 0; i < c.location_blocks.size(); i++)
+	{
+		const std::vector<std::string>& m = c.location_blocks[i].allowed_methods;
+		for (std::size_t i = 0; i < m.size(); i++)
+			if (m[i] != "GET" && m[i] != "POST" && m[i] != "DELETE")
+				throw std::runtime_error("Invalid method in location block: " + m[i]);
+	}
+}
+
+static void check_config_vector(std::vector<config>& cv)
 {
 	typedef std::pair<std::string, int> psi;
+	//checking duplicate host:port
 	for (std::size_t i = 0; i < cv.size(); i++)
 	{	
 		psi host_port = psi(cv[i].server_name, cv[i].port);
-		for (std::size_t j = 0; j < cv.size(); j++)
-			if (j != i && host_port == psi(cv[j].server_name, cv[j].port))
+		for (std::size_t j = i + 1; j < cv.size(); j++)
+			if (host_port == psi(cv[j].server_name, cv[j].port))
 				throw std::runtime_error("Two or more servers with the same server_name and port");
 	}
+	//checking duplicate locations
+	for (std::size_t i = 0; i < cv.size(); i++)
+	{
+		check_valid_locations(cv[i]);
+		remove_locations_trailing_slash(cv[i]);
+		check_duplicate_locations(cv[i]);
+		check_methods_in_locations(cv[i]);
+	}
+}
+
+static void display_vector(const std::vector<config>& v)
+{
+	for (std::size_t i = 0; i < v.size(); i++)
+		logn(v[i]);
 }
 
 std::vector<config> init_configs(const std::string& file_path)
@@ -132,6 +196,7 @@ std::vector<config> init_configs(const std::string& file_path)
 	std::vector<config> config_vec = get_config_vector(str, line_num);
 	//config vector is initialized. Still need to check if it's possible or not (e.g.: duplicate hostname:port)
 	check_config_vector(config_vec);
+	display_vector(config_vec);
 	return config_vec;
 }
 
