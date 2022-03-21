@@ -17,12 +17,21 @@ webserver::webserver(vector<config> config_vector):	_response_code(404), _sockle
 	memset(&_pollfd, 0, sizeof(_pollfd));
 	_pollfd.fd	= -1;
 	try {
-		_servers.reserve(config_vector.size());				//don't call all destructors every time a server is added
-		for (size_t n = 0; n < config_vector.size(); n++)
-			_servers.push_back(server(config_vector[n]));	//see ~webserv()
+		map<unsigned short, vector<config> > ports;
+		for(size_t n = 0; n < config_vector.size(); n++)
+			ports[config_vector[n].port].push_back(config_vector[n]);
+		for(map_it n = ports.begin(); n != ports.end(); n++)
+			_servers.push_back(server(n->second));
 	}
 	catch (...) {
 		throw ;
+	}
+	for (size_t n = 0; n < _servers.size(); n++)
+	{
+		cout << "PORT " << ntohs(_servers[n]._port) << endl;
+		cout << "SIZE " << _servers[n]._configs.size() << endl;
+		for (size_t j = 0; j < _servers[n]._configs.size(); j++)
+			cout << "NAME [" << n << "][" << j << "]" <<  _servers[n]._configs[j].server_name << endl;
 	}
 }
 
@@ -189,7 +198,7 @@ void webserver::request_handler(const pollfd & fd, server & server) {
 		handle_DELETE(fd, server);
 	else {
 		_response_code = NOT_IMPLEMENTED;
-		send_response(fd, server._error_pages[NOT_IMPLEMENTED], true);
+		send_response(fd, server._configs[0].error_pages[NOT_IMPLEMENTED], true);
 	}
 }
 
@@ -206,11 +215,11 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	cerr << "requestpath" << _http_request._path << endl;
 	if (!file_exists(_http_request._path)) {
 		_response_code = NOT_FOUND;
-		response_file = server._error_pages[NOT_FOUND];
+		response_file = server._configs[0].error_pages[NOT_FOUND];
 	}
 	else if (_http_request._path.find("server_files") == string::npos) {
 		_response_code = FORBIDDEN;
-		response_file = server._error_pages[FORBIDDEN];
+		response_file = server._configs[0].error_pages[FORBIDDEN];
 	}
 	else
 		_response_code = OK;
@@ -231,15 +240,15 @@ int	webserver::handle_DELETE(const pollfd &fd, server& server) {
 	// if (std::find(server._location_blocks[0]._allowed_methods.begin(), server._location_blocks[0]._allowed_methods.end(), "DELETE") == server._location_blocks[0]._allowed_methods.end())
 	// {
 	// 	_response_code = METHOD_NOT_ALLOWED;
-	// 	response_file = server._error_pages[METHOD_NOT_ALLOWED];
+	// 	response_file = server._configs[0].error_pages[METHOD_NOT_ALLOWED];
 	// }
 	if (!file_exists(_http_request._path)) {
 		_response_code = NOT_FOUND;
-		response_file = server._error_pages[NOT_FOUND];
+		response_file = server._configs[0].error_pages[NOT_FOUND];
 	}
 	else if (_http_request._path.find("server_files") == std::string::npos) {
 		_response_code = FORBIDDEN;
-		response_file = server._error_pages[FORBIDDEN];
+		response_file = server._configs[0].error_pages[FORBIDDEN];
 	}
 	else
 	{
@@ -252,7 +261,7 @@ int	webserver::handle_DELETE(const pollfd &fd, server& server) {
 		else
 		{
 			_response_code = FORBIDDEN;
-			response_file = server._error_pages[FORBIDDEN];
+			response_file = server._configs[0].error_pages[FORBIDDEN];
 			body = true;
 		}
 	}
@@ -463,7 +472,7 @@ int webserver::get_server_id(int fd_tofind) const {
 }
 
 bool	webserver::is_deletable(server & server, const std::string& filename) const {
-	for (server::map_it it = server._error_pages.begin(); it != server._error_pages.end(); it++)
+	for (server::map_it it = server._configs[0].error_pages.begin(); it != server._configs[0].error_pages.end(); it++)
 		if (filename == it->second)
 			return false;
 	if (filename == "favicon.ico")		

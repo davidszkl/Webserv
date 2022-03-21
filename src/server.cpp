@@ -1,11 +1,8 @@
 #include "server.hpp"
 
-server::server(config& conf):
-	_port(htons(conf.port)),
-	_max_body(conf.max_body),
-	_server_name(conf.server_name),
-	_error_pages(conf.error_pages),
-	_location_blocks(conf.location_blocks)
+server::server(vector<config> vector_config):
+	_configs(vector_config),
+	_port(htons(vector_config[0].port))
 {
 	_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_sockfd < 0)

@@ -87,6 +87,7 @@ public:
 		webserver_exception(const char* what): runtime_error(what) {}
 	};
 
+	typedef map<unsigned short, vector<config> >::iterator map_it;
 	struct http_request
 	{
 		string			_full_request;
