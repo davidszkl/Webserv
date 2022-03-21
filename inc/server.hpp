@@ -9,7 +9,7 @@ class server
 {
 public:
 
-	server(config conf);
+	server(config& conf);
 	~server();
 
 	class server_exception : public std::runtime_error
@@ -35,8 +35,8 @@ public:
 	
 	int							_sockfd;
 	unsigned short 				_port;
-	size_t 						_max_body;
-	string 						_server_name;
+	size_t 						_max_body;			//post
+	string 						_server_name;		//Host:
 	sockaddr_in					_server_addr;
 	map<int, string> 			_error_pages;
 	vector<config::location>	_location_blocks;

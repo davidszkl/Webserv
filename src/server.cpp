@@ -1,7 +1,7 @@
 #include "server.hpp"
 
-server::server(config conf):
-	_port(conf.port),
+server::server(config& conf):
+	_port(htons(conf.port)),
 	_max_body(conf.max_body),
 	_server_name(conf.server_name),
 	_error_pages(conf.error_pages),
@@ -22,7 +22,7 @@ server::server(config conf):
 	memset(&_server_addr, 0, sizeof(_server_addr));
 	_server_addr.sin_family			= AF_INET;
 	_server_addr.sin_addr.s_addr	= inet_addr("127.0.0.1");
-	_server_addr.sin_port			= htons(_port);
+	_server_addr.sin_port			= _port;
 
 	int temporary = 0;
 	if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &temporary, sizeof(int)) < 0)

@@ -15,7 +15,6 @@ int main()
 	catch (std::exception& e) {
 		cerr << "Error in " + path + ":\n\t" + e.what() + "\n";
 	}
-
 	try {
 		webserver main_server(vec);				//all servers initialized in webserver constructor
 		main_server.listen_all();				//main function listening on all servers
