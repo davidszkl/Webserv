@@ -1,5 +1,5 @@
 #pragma once
-#include <string>
+#include "utilities.hpp"
 
 /*
 	checks if http message (header + body) is valid for a cgi response.
@@ -7,7 +7,7 @@
 	root is the root of the server.
 	Return 1 on success, 0 on failure or the number of error (415, 411, 413, ...);
  */
-int is_valid_for_cgi(const std::string& full_message, std::string root, const std::string& location);
+int is_valid_for_cgi(const string& full_message, string root, const string& location);
 
 /*
 	This function needs the first line of the http header and the body, so pass the full http message in full_message.
@@ -15,14 +15,14 @@ int is_valid_for_cgi(const std::string& full_message, std::string root, const st
 	ouput_fd is where the python script will write its ouput.
 	The http message should be valid! (is_valid_for_cgi must have returned true with the same message/root)
  */
-void execute_cgi(const std::string& full_message, std::string root, const std::string& location, int ouput_fd);
+void execute_cgi(const string& full_message, string root, const string& location, int ouput_fd);
 
 /*
 header must end with \r\n\r\n. Everything after that is ignored.
 if there is Content-Length: 200 in the header and name=="Content-Length"m then returns "200"
 returns "" if not found
  */
-std::string get_header_info(const std::string& header, const std::string& name);
+string get_header_info(const string& header, const string& name);
 
 
 //example test:
@@ -34,7 +34,7 @@ std::string get_header_info(const std::string& header, const std::string& name);
 
 int main()
 {
-	std::string full_message, root, location;
+	string full_message, root, location;
 	full_message = "\
 POST /you/must/exec/cgi-script.py/ok/cool?cool=skdjklfj%%%% HTTP/1.1\r\n\
 Content-Type: application/x-www-form-urlencoded\r\n\
