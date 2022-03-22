@@ -23,6 +23,7 @@ public:
 private:
 
 	vector<config>	_configs;
+	string			_full_url;
 	sockaddr_in		_server_addr;
 	unsigned short	_port;
 	int				_sockfd;

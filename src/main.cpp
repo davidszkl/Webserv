@@ -17,7 +17,6 @@ int main()
 	}
 	try {
 		webserver main_server(vec);				//all servers initialized in webserver constructor
-		return 1;
 		main_server.listen_all();				//main function listening on all servers
 	}
 	catch (server::server_exception &e) {		//one of the servers couldn't be initialized

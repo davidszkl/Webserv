@@ -68,7 +68,7 @@ public:
 	void	listen_all();
 	void	clear_errors();
 	void	init_pollsock();
-	void	init_request();
+	void	init_request(const server & server);
 	void	clear_request();
 	void	request_handler(const pollfd& fd, server& server);
 	void	send_response(const pollfd& fd, string filename, bool error);

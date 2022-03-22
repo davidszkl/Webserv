@@ -173,7 +173,7 @@ bool is_post(string str) {
 }
 
 void webserver::request_handler(const pollfd & fd, server & server) {
-	init_request();
+	init_request(server);
 	cerr << "REQUEST=============\n"	<< _http_request._full_request	<< "REQUEST=============" << endl;
 	cerr << "URI=============\n"		<< _http_request._uri			<< "\nURI=============" << endl;
 	if (!_http_request._method.size() || !_http_request._uri.size() || !_http_request._version.size()) {
@@ -281,8 +281,7 @@ void webserver::send_response(const pollfd &fd, string filename, bool body) {
 	send(fd.fd, http_response.c_str(), http_response.size(), 0);
 }
 
-void webserver::init_request() {
-
+void webserver::init_request(const server & server) {
 	int temp_pos = _http_request._full_request.find("\r\n\r\n");
 	if (temp_pos > 0)
 		_http_request._header = _http_request._full_request.substr(0, temp_pos);
@@ -302,8 +301,10 @@ void webserver::init_request() {
 	ss >> _http_request._method;
 	ss >> _http_request._uri;
 	ss >> _http_request._version;
+	//_host_index
+	//_location_index
+	//server._port
 	_http_request._path = _root + _http_request._uri;
-	cerr << "DEBUG\n" << _http_request._path << endl;
 }
 
 void webserver::clear_errors() {						//clear servers that got shutdown for some reason
