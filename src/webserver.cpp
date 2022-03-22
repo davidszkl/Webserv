@@ -301,10 +301,19 @@ void webserver::init_request(const server & server) {
 	ss >> _http_request._method;
 	ss >> _http_request._uri;
 	ss >> _http_request._version;
-	//_host_index
-	//_location_index
-	//server._port
-	_http_request._path = _root + _http_request._uri;
+	_config_index = get_config_index(server._port, server._configs, _http_request._header_lines);
+	if (_config_index == -1)
+	{
+		logn("config index is -1. setting path to " + _http_request._uri);
+		_http_request._path = _http_request._uri;
+		return;
+	}
+	_location_index = get_location_index(_http_request._uri, server._configs[_config_index]);
+	const std::size_t l = server._configs[_config_index].location_blocks[_location_index].path.length();
+	_root = server._configs[_config_index].location_blocks[_location_index].root;
+	_http_request._path = _root + _http_request._uri.substr(l, _http_request._uri.length() - l);
+	logn("new request_path: " + _http_request._path);
+	logn("used root: " + _root);
 }
 
 void webserver::clear_errors() {						//clear servers that got shutdown for some reason
@@ -479,4 +488,48 @@ bool	webserver::is_deletable(server & server, const std::string& filename) const
 	if (filename == "favicon.ico")		
 		return false;
 	return true;
+}
+
+int webserver::get_config_index(unsigned short _port,
+    const vector<config>& _configs,
+    const vector<string>& header_lines)
+{
+	_port = ntohs(_port);
+    string host;
+    for (std::size_t i = 0; i < header_lines.size(); i++)
+    {
+        if (header_lines[i].compare(0, 6, "Host: ") == 0)
+        {
+            host = header_lines[i].substr(6, string::npos);
+            break;
+        }
+    }
+    for (std::size_t i = 0; i < _configs.size(); i++)
+    {
+        if (_configs[i].port != _port) continue;
+        if (host != "" && _configs[i].server_name != host) continue;
+        return i;
+    }
+    for (std::size_t i = 0; i < _configs.size(); i++)
+    {
+        if (_configs[i].port == _port)
+        	return i;
+    }
+	logn("get_config_index returned -1. Host=" + host + " port=" + i_to_str(_port));
+    return -1;
+}
+
+int webserver::get_location_index(const string& uri, const config conf)
+{
+    vector<int> results;
+    for (std::size_t i = 0; i < conf.location_blocks.size(); i++)
+    {
+        const int r = conf.location_blocks[i].match_url(uri);
+        results.push_back(r);
+    }
+    int n = 0;
+    for (std::size_t i = 0; i < results.size(); i++)
+        if (results[i] > results[n])
+            n = i;
+   return n; 
 }

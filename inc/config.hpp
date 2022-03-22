@@ -22,9 +22,9 @@ class config
 				string redirect;		// empty if no redirect
 				string upload_dir;		//empty if upload not permitted
 				vector<string> allowed_methods;
-				/* return 0 if path does not match location. Otherwise number of '/' in this->path
+				/* return 0 if path does not match location. Otherwise length of path
 				 url_path should be something like /ok/foo/bar */
-				unsigned match_url(const string& url_path);
+				unsigned match_url(const string& url_path) const;
 				location();
 		};
 		string server_name;

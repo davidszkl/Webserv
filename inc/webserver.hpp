@@ -80,8 +80,10 @@ public:
 	int		handle_DELETE(const pollfd& fd, server& server);
 	int		handle_GET(const pollfd& fd, server& server);
 	string	get_code_description(int code) const;
+	int get_config_index(unsigned short _port, const vector<config>& _configs, const vector<string>& header_lines);
+	int get_location_index(const string &uri, const config conf);
 
-	class webserver_exception : public std::runtime_error
+		class webserver_exception : public std::runtime_error
 	{
 	public:
 		webserver_exception(const char* what): runtime_error(what) {}
@@ -111,6 +113,8 @@ private:
 	size_t			_content_length;
 	pollfd			_pollfd;
 	string			_root;
+	int				_config_index;
+	int				_location_index;
 };
 
 void 		poll_result(const pollfd& fd);
