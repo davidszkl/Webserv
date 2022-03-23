@@ -159,6 +159,31 @@ static void check_methods_in_locations(const config& c)
 	}
 }
 
+static void add_trailing_to_root(config& c)
+{
+	for (std::size_t i = 0; i < c.location_blocks.size(); i++)
+	{
+		string& s = c.location_blocks[i].root;
+		if (s != "" && s[s.length() - 1] != '/')
+		{
+			logn("Adding trailing / to root " + s);
+			s += "/";
+		}
+	}
+}
+
+static void check_at_least_root(const config& c)
+{
+	bool b = true;
+	for (std::size_t i = 0; i < c.location_blocks.size(); i++)
+	{
+		if (c.location_blocks[i].path == "/")
+			b = false;
+	}
+	if (b)
+		throw std::runtime_error("server needs at least a location /");
+}
+
 static void check_config_vector(std::vector<config>& cv)
 {
 	typedef std::pair<std::string, int> psi;
@@ -170,13 +195,15 @@ static void check_config_vector(std::vector<config>& cv)
 			if (host_port == psi(cv[j].server_name, cv[j].port))
 				throw std::runtime_error("Two or more servers with the same server_name and port");
 	}
-	//checking duplicate locations
+	//checking duplicate locations and more
 	for (std::size_t i = 0; i < cv.size(); i++)
 	{
+		add_trailing_to_root(cv[i]);
 		check_valid_locations(cv[i]);
 		remove_locations_trailing_slash(cv[i]);
 		check_duplicate_locations(cv[i]);
 		check_methods_in_locations(cv[i]);
+		check_at_least_root(cv[i]);
 	}
 }
 
