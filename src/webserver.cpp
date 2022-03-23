@@ -8,6 +8,12 @@ void server_shutdown(int signbr) {
 	(void)signbr;
 	_server_alive = false;
 }
+
+void show_detailed(char *str) {
+	for (size_t n = 0; n < strlen(str); n++)
+		cerr << n + 1 << ": \'" << str[n] << "\'" << "= " << (int)str[n] << endl;
+}
+
 //TO_ERASE
 
 webserver::webserver(vector<config> config_vector):	_response_code(404), _socklen(sizeof(_client_addr))
@@ -135,7 +141,7 @@ int webserver::read_msg(int fd) {;
 	int end = 0;
 	clear_request();
 	cerr << "Receiving message:\n";
-	while(!find_crlf(string(buffer)))
+	while(!find_crlf(string(_http_request._full_request)))
 	{
 		end = recv(fd, &buffer, 100, 0);
 		if (end < 0)
