@@ -3,12 +3,29 @@ enum error_codes {
 	VECTOR_INIT_ERROR = 1,
 	RUNTIME_ERROR,
 	FATAL_ERROR,
-	CONFIG_ERROR
+	CONFIG_ERROR,
+	INVALID_ARGS
 };
 
-int main()
+string read_args(int argc, char *argv[])
 {
-	string path = "./default.conf";
+	if (argc == 1)
+		return "./default.conf";
+	if (argc == 2)
+		return argv[1];
+	throw std::runtime_error("invalid number of arguments");
+	return "";
+}
+
+int main(int argc, char *argv[])
+{
+	string path;
+	try {
+		path = read_args(argc, argv);
+	} catch (const std::exception& e) {
+		cerr << string("Invalid argument: ") + e.what() + "\n";
+		return INVALID_ARGS;
+	}
 	vector<config> vec;
 	try {
 		vec = init_configs(path);

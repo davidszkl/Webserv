@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>    //find
 #include <vector>		//webserver, config
 #include <map>			//config, server
 
