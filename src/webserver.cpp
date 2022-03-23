@@ -36,7 +36,7 @@ webserver::webserver(vector<config> config_vector):	_response_code(404), _sockle
 }
 
 webserver::~webserver() {
-	cerr << "webserv destructor" << endl;
+	logn("webserv destructor");
 	for (size_t n = 0; n < _servers.size(); n++) {					//~webserv() handles closing of server sockets because
 		if (_servers[n]._sockfd)
 		{
@@ -128,7 +128,6 @@ void webserver::listen_all()
 		accept_fd = -1;
 		clear_errors();
 	}
-	cerr << "Stop message received.\nShutting down server." << endl;
 }
 
 int webserver::read_msg(int fd) {;
@@ -156,7 +155,7 @@ int webserver::read_msg(int fd) {;
 			_http_request._full_request += buffer;
 		}
 	}
-	cerr << "Quitting\n";
+	logn("received all of the message");
 	return 0;
 }
 
@@ -174,9 +173,14 @@ bool is_post(string str) {
 
 void webserver::request_handler(const pollfd & fd, server & server) {
 	init_request(server);
-	cerr << "REQUEST=============\n"	<< _http_request._full_request	<< "REQUEST=============" << endl;
-	cerr << "URI=============\n"		<< _http_request._uri			<< "\nURI=============" << endl;
-	if (!_http_request._method.size() || !_http_request._uri.size() || !_http_request._version.size()) {
+	logn("request=================");
+	logn(_http_request._full_request);
+	logn("request=================");
+	logn("uri: " + _http_request._full_request);
+	if (!_http_request._method.size()	||
+		!_http_request._uri.size()		||
+		!_http_request._version.size())
+	{
 		_response_code = BAD_REQUEST;
 		send_response(fd, "", false);
 	}
@@ -198,32 +202,36 @@ void webserver::request_handler(const pollfd & fd, server & server) {
 		handle_DELETE(fd, server);
 	else {
 		_response_code = NOT_IMPLEMENTED;
-		send_response(fd, server._configs[0].error_pages[NOT_IMPLEMENTED], true);
+		send_response(fd, server._configs[_config_index].error_pages[NOT_IMPLEMENTED], true);
 	}
 }
 
 int	webserver::handle_GET(const pollfd &fd, server & server) {
 	bool body					= true;
 	std::string& response_file	= _http_request._path;
+	const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
 
-	// if (std::find	(server._allowed_methods.begin(), server._allowed_methods.end(), "GET") == server._allowed_methods.end())
-	// {
-	// 	_response_code = METHOD_NOT_ALLOWED;
-	// 	response_file = server._error_pages[METHOD_NOT_ALLOWED];
-	// }
-	(void)server;
-	cerr << "requestpath" << _http_request._path << endl;
+	if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),
+	 	"GET")
+		== current_block.allowed_methods.end())
+	{
+		_response_code = METHOD_NOT_ALLOWED;
+		response_file = server._configs[_config_index].error_pages[METHOD_NOT_ALLOWED];
+	}
+	if (_http_request._path[_http_request._path.size() - 1] == '/')
+		_http_request._path += current_block.index;
+	logn("requestpath: " + _http_request._path);
 	if (!file_exists(_http_request._path)) {
 		_response_code = NOT_FOUND;
-		response_file = server._configs[0].error_pages[NOT_FOUND];
+		response_file = server._configs[_config_index].error_pages[NOT_FOUND];
 	}
 	else if (_http_request._path.find("server_files") == string::npos) {
 		_response_code = FORBIDDEN;
-		response_file = server._configs[0].error_pages[FORBIDDEN];
+		response_file = server._configs[_config_index].error_pages[FORBIDDEN];
 	}
 	else
 		_response_code = OK;
-	cerr << "RESPONSE_FILE\n" << response_file << endl;
+	logn("RESPONSE_FILE\n" + response_file);
 	send_response(fd, response_file, body);
 	return 0;
 }
@@ -236,19 +244,21 @@ int	webserver::handle_POST(const pollfd &fd) {
 int	webserver::handle_DELETE(const pollfd &fd, server& server) {
 	bool body					= true;
 	std::string& response_file	= _http_request._path;
+	const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
 
-	// if (std::find(server._location_blocks[0]._allowed_methods.begin(), server._location_blocks[0]._allowed_methods.end(), "DELETE") == server._location_blocks[0]._allowed_methods.end())
-	// {
-	// 	_response_code = METHOD_NOT_ALLOWED;
-	// 	response_file = server._configs[0].error_pages[METHOD_NOT_ALLOWED];
-	// }
+	if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),
+	 	"DELETE") == current_block.allowed_methods.end())
+	{
+		_response_code = METHOD_NOT_ALLOWED;
+		response_file = server._configs[_config_index].error_pages[METHOD_NOT_ALLOWED];
+	}
 	if (!file_exists(_http_request._path)) {
 		_response_code = NOT_FOUND;
-		response_file = server._configs[0].error_pages[NOT_FOUND];
+		response_file = server._configs[_config_index].error_pages[NOT_FOUND];
 	}
 	else if (_http_request._path.find("server_files") == std::string::npos) {
 		_response_code = FORBIDDEN;
-		response_file = server._configs[0].error_pages[FORBIDDEN];
+		response_file = server._configs[_config_index].error_pages[FORBIDDEN];
 	}
 	else
 	{
@@ -261,8 +271,7 @@ int	webserver::handle_DELETE(const pollfd &fd, server& server) {
 		else
 		{
 			_response_code = FORBIDDEN;
-			response_file = server._configs[0].error_pages[FORBIDDEN];
-			body = true;
+			response_file = server._configs[_config_index].error_pages[FORBIDDEN];
 		}
 	}
 	send_response(fd, response_file, body);
@@ -417,7 +426,7 @@ string slurp_file(string file) {
 	buffer << stream.rdbuf();
 	string file_content(buffer.str());
 	if (!(file == "server_files/favicon.ico"))
-		cout << "WEBPAGE\n" << file_content << endl << "WEBPAGE " << endl;
+		logn("WEBPAGE\n" + file_content + "WEBPAGE\n");
 	return file_content;
 }
 
@@ -448,14 +457,14 @@ string read_header_line(string from) {
 }
 
 void poll_result(const pollfd & fd){
-	cout << "events  : "												\
+	cerr << "events  : "												\
 		 << (fd.events & POLLIN 	? " POLLIN |"	: "        |")		\
 		 << (fd.events & POLLHUP	? " POLLHUP |"	: "         |")		\
 		 << (fd.events & POLLERR	? " POLLERR |"	: "         |")		\
 		 << (fd.events & POLLPRI	? " POLLPRI |"	: "         |")		\
 		 << (fd.events & POLLOUT	? " POLLOUT |"	: "         |")		\
 		 << (fd.events & POLLNVAL	? " POLLNVAL |"	: "          |")	<< endl;
-	cout << "revents : " 												\
+	cerr << "revents : " 												\
 		 << (fd.revents & POLLIN 	? " POLLIN |"	: "        |")		\
 		 << (fd.revents & POLLHUP	? " POLLHUP |"	: "         |")		\
 		 << (fd.revents & POLLERR	? " POLLERR |"	: "         |")		\
@@ -472,6 +481,7 @@ void	webserver::clear_request() {
 	_http_request._uri.clear();
 	_http_request._version.clear();
 	_http_request._header_lines.clear();
+	_http_request._path.clear();
 }
 
 int webserver::get_server_id(int fd_tofind) const {
