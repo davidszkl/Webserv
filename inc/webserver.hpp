@@ -51,12 +51,6 @@ enum RESPONSE_CODES {
 
 extern bool	_server_alive;
 
-enum METHODS {
-	GET		= 1,
-	POST	= 2,
-	DELETE	= 3
-};
-
 class webserver
 {
 public:
