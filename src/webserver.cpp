@@ -210,7 +210,6 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	bool body					= true;
 	std::string& response_file	= _http_request._path;
 	const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
-
 	if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),
 	 	"GET")
 		== current_block.allowed_methods.end())
@@ -221,7 +220,11 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	if (_http_request._path[_http_request._path.size() - 1] == '/')
 		_http_request._path += current_block.index;
 	logn("requestpath: " + _http_request._path);
-	if (!file_exists(_http_request._path)) {
+    if(current_block.autoindex)
+    {
+       response_file =  autoindex(_http_request._path);
+    }
+	else if (!file_exists(_http_request._path)) {
 		_response_code = NOT_FOUND;
 		response_file = server._configs[_config_index].error_pages[NOT_FOUND];
 	}

@@ -1,0 +1,39 @@
+ std::string Webserv::autoindex()
+ {
+ std::string body;
+  struct tm	*tm;
+  char buf[32];
+  DIR *dir;
+  struct stat statbuf;
+  struct dirent *ent;
+
+  dir = opendir(path_.c_str());
+  body += "<html>\r\n";
+  body += "<head><title>Index of " + target + "</title></head>\r\n";
+  body += "<body>\r\n";
+  body += "<h1>Index of " + target + "</h1><hr><pre>";
+  std::vector<auto_listing> listing;
+
+  readdir(dir);
+  while ((ent = readdir(dir))) {
+    auto_listing li;
+
+    li.name_ = ent->d_name;
+    if (li.name_.length() > 50) {
+      li.name_.erase(47);
+      li.name_ += "..>";
+    }
+    std::string path(path_ + "/" + ent->d_name);
+    stat(path.c_str(), &statbuf);
+
+    if (S_ISDIR(statbuf.st_mode)) {
+      li.is_dir_ = true;
+      li.name_ += "/";
+    }
+
+    tm = gmtime(&statbuf.st_mtime);
+    int ret = strftime(buf, 32, "%d-%b-%Y %H:%M", tm);
+    li.date_ = std::string(buf, ret);
+    li.size_ = statbuf.st_size;
+    listing.push_back(li);
+    }
