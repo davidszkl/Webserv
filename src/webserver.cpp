@@ -237,8 +237,31 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 }
 
 int	webserver::handle_POST(const pollfd &fd) {
-	cerr << "POST handler for " << fd.fd << endl;
-	return 0;
+    bool body					= true;
+    std::string& response_file	= _http_request._path;
+    const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
+
+    if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),"POST")== current_block.allowed_methods.end())
+    {
+        _response_code = METHOD_NOT_ALLOWED;
+        response_file = server._configs[_config_index].error_pages[METHOD_NOT_ALLOWED];
+    }
+    if (_http_request._path[_http_request._path.size() - 1] == '/')
+        _http_request._path += current_block.index;
+    logn("requestpath: " + _http_request._path);
+    if (!file_exists(_http_request._path)) {
+        _response_code = NOT_FOUND;
+        response_file = server._configs[_config_index].error_pages[NOT_FOUND];
+    }
+    else if (_http_request._path.find("server_files") == string::npos) {
+        _response_code = FORBIDDEN;
+        response_file = server._configs[_config_index].error_pages[FORBIDDEN];
+    }
+    else
+        _response_code = OK;
+    logn("RESPONSE_FILE\n" + response_file);
+    send_response(fd, response_file, body);
+    return 0;
 }
 
 int	webserver::handle_DELETE(const pollfd &fd, server& server) {
