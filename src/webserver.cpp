@@ -140,6 +140,7 @@ int webserver::read_msg(int fd) {;
 	char buffer[100] = {0};
 	clear_request();
 	cerr << "Receiving message:\n";
+	logn("Method: " + _http_request._method);
 	while(!find_crlf(string(_http_request._full_request)))
 	{
 		int end = recv(fd, &buffer, 100, 0);
@@ -316,7 +317,9 @@ void webserver::init_request(const server & server) {
 			break ;
 	}
 	std::stringstream ss(_http_request._header_lines[0]);
+	logn("HEADER_LINES: " + _http_request._header_lines[0]);
 	ss >> _http_request._method;
+	logn("METHOD: " + _http_request._method);
 	ss >> _http_request._uri;
 	ss >> _http_request._version;
 	_config_index = get_config_index(server._port, server._configs, _http_request._header_lines);
