@@ -152,11 +152,13 @@ int webserver::read_msg(int fd) {;
 	if (is_post(_http_request._full_request))
 	{
 		_content_length = std::atoi(get_header_info(_http_request._full_request, "Content-Length").c_str());
-		while(!find_crlf(string(buffer)))
+		size_t read_bytes = 0;
+		while(read_bytes < _content_length)
 		{
 			end = recv(fd, &buffer, 100, 0);
 			if (end < 0)
 				return -1;
+			read_bytes += end;
 			buffer[end] = '\0';
 			_http_request._full_request += buffer;
 		}
