@@ -138,24 +138,27 @@ void webserver::listen_all()
 
 int webserver::read_msg(int fd) {;
 	char buffer[100] = {0};
-	int end = 0;
 	clear_request();
 	cerr << "Receiving message:\n";
 	while(!find_crlf(string(_http_request._full_request)))
 	{
-		end = recv(fd, &buffer, 100, 0);
+		int end = recv(fd, &buffer, 100, 0);
 		if (end < 0)
 			return -1;
 		buffer[end] = '\0';
 		_http_request._full_request += buffer;
 	}
-	if (is_post(_http_request._full_request))
+	if (_http_request._method == "POST")
 	{
 		_content_length = std::atoi(get_header_info(_http_request._full_request, "Content-Length").c_str());
-		size_t read_bytes = 0;
+		log("_content_length = ");
+		logn(_content_length);
+		size_t read_bytes = get_read_bytes(_http_request._full_request);
+		log("read_bytes = ");
+		logn(read_bytes);
 		while(read_bytes < _content_length)
 		{
-			end = recv(fd, &buffer, 100, 0);
+			int end = recv(fd, &buffer, 100, 0);
 			if (end < 0)
 				return -1;
 			read_bytes += end;
@@ -173,10 +176,8 @@ bool find_crlf(string str) {
 	return false;
 }
 
-bool is_post(string str) {
-	if (str.find("POST") != string::npos)
-		return true;
-	return false;
+size_t webserver::get_read_bytes(string str) const {
+	return (str.size() - str.find("\r\n\r\n") + 4);
 }
 
 void webserver::request_handler(const pollfd & fd, server & server) {
