@@ -149,7 +149,7 @@ int webserver::read_msg(int fd) {;
 		buffer[end] = '\0';
 		_http_request._full_request += buffer;
 	}
-	if (_http_request._method == "POST")
+	if (!_http_request._full_request.find("POST"))
 	{
 		_content_length = std::atoi(get_header_info(_http_request._full_request, "Content-Length").c_str());
 		log("_content_length = ");
