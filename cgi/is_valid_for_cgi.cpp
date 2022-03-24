@@ -95,7 +95,10 @@ int is_valid_for_cgi(const std::string& full_message, std::string root, const st
 	if (request == "POST")
 	{
 		std::string content_type = get_header_info(full_message, "Content-Type");
-		if (content_type != "application/x-www-form-urlencoded")
+		if (content_type.length() > string("multipart/form-data; boundary=").length()
+		&& content_type.compare(0, string::npos, "multipart/form-data; boundary="))
+			logn("POST multipart detected if is_valid_for_cgi: " + content_type);
+		else if (content_type != "application/x-www-form-urlencoded")
 		{
 			logn("CGI does not support this Content-Type: " + content_type);
 			logn("is_valid_for_cgi returned 415");
