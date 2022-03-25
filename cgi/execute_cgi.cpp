@@ -5,6 +5,8 @@
 #include <sys/wait.h>
 #include <stdio.h>
 
+void fix_content_in_split(char**& split);
+
 char	**ft_split(char const *s, char c);
 
 /*
@@ -74,7 +76,9 @@ static void setup_and_exec(int output_fd,
 		std::string query_string,
 		bool define_path,
 		std::string path_info,
-		std::string exec_path)
+		std::string exec_path,
+		std::string content_type,
+		bool define_content)
 {
 	std::string command = "/usr/bin/env";
 	std::string exec_path2 = exec_path;
@@ -85,6 +89,8 @@ static void setup_and_exec(int output_fd,
 		command += " QUERY_STRING=" + query_string;
 	if (define_path)
 		command += " PATH_INFO=" + path_info;
+	if (define_content)
+		command += " CONTENT_TYPE=" + content_type;
 	command += " REQUEST_METHOD=" + request;
 	command += " " + exec_path;
 	int pipefds[2];
@@ -110,11 +116,12 @@ static void setup_and_exec(int output_fd,
 			perror("dup2()"); exit(1);
 		}
 		if (output_fd != 1) close(output_fd);
-		const char **split = const_cast<const char**>(ft_split(command.c_str(), ' '));
+		char **split = ft_split(command.c_str(), ' ');
 		if (!split) { perror("ft_split()"); exit(1); }
+		fix_content_in_split(split);
 		logn("executing " + exec_path + ":");
 		execve(split[0], (char * const *)split, 0);
-		ft_freetab(split);
+		ft_freetab(const_cast<const char**>(split));
 		perror("execve()");
 		exit(1);
 	}
@@ -171,7 +178,9 @@ void execute_cgi(const std::string& full_message, std::string root, const std::s
 		logn("QUERY_STRING==" + query_string);
 	else
 		logn("No QUERY_STRING will be defined/passed to stdin");
-	setup_and_exec(output_fd, request, define_query, query_string, define_path, path_info, exec_path);
+	string content_type = get_header_info(full_message, "Content-Type");
+	bool define_content = (content_type != "");
+	setup_and_exec(output_fd, request, define_query, query_string, define_path, path_info, exec_path, content_type, define_content);
 }
 
 

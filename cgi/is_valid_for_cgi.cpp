@@ -96,7 +96,7 @@ int is_valid_for_cgi(const std::string& full_message, std::string root, const st
 	{
 		std::string content_type = get_header_info(full_message, "Content-Type");
 		if (content_type.length() > string("multipart/form-data; boundary=").length()
-		&& content_type.compare(0, string::npos, "multipart/form-data; boundary="))
+		&& content_type.compare(0, 30, "multipart/form-data; boundary=") == 0)
 			logn("POST multipart detected if is_valid_for_cgi: " + content_type);
 		else if (content_type != "application/x-www-form-urlencoded")
 		{
@@ -119,10 +119,7 @@ int is_valid_for_cgi(const std::string& full_message, std::string root, const st
 			return false;
 		}
 		if (full_message.find("\r\n\r\n") + cl + 4 >= full_message.length())
-		{
-			logn("Content-Length too large");
-			return 413;
-		}
+			logn("Warning: Content-Length too large");
 	}
 	logn("http message is valid for cgi");
 	return true;
