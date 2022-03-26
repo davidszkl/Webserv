@@ -15,7 +15,7 @@ int is_valid_for_cgi(const string& full_message, string root, const string& loca
 	ouput_fd is where the python script will write its ouput.
 	The http message should be valid! (is_valid_for_cgi must have returned true with the same message/root)
  */
-void execute_cgi(const string& full_message, string root, const string& location, int ouput_fd);
+void execute_cgi(const string& full_message, string root, const string& location, const string& upload_pass, int ouput_fd);
 
 /*
 header must end with \r\n\r\n. Everything after that is ignored.

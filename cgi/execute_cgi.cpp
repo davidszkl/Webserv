@@ -78,7 +78,8 @@ static void setup_and_exec(int output_fd,
 		std::string path_info,
 		std::string exec_path,
 		std::string content_type,
-		bool define_content)
+		bool define_content,
+		const std::string& upload_pass)
 {
 	std::string command = "/usr/bin/env";
 	std::string exec_path2 = exec_path;
@@ -92,6 +93,7 @@ static void setup_and_exec(int output_fd,
 	if (define_content)
 		command += " CONTENT_TYPE=" + content_type;
 	command += " REQUEST_METHOD=" + request;
+	command += " UPLOAD_PASS=" + upload_pass;
 	command += " " + exec_path;
 	int pipefds[2];
 	if (pipe(pipefds) == -1)
@@ -125,6 +127,7 @@ static void setup_and_exec(int output_fd,
 		perror("execve()");
 		exit(1);
 	}
+	std::cout << "QUERY_STING:(CPP): " + query_string << std::endl;
 	if (request == "POST" && define_query)
 		write(pipefds[1], query_string.c_str(), query_string.length());
 	close(pipefds[0]);
@@ -139,7 +142,7 @@ static void setup_and_exec(int output_fd,
 	output_fd is where the python script will write its ouput.
 	The http message should be valid! (is_valid_for_cgi must have returned true with the same message/root)
  */
-void execute_cgi(const std::string& full_message, std::string root, const std::string& location, int output_fd)
+void execute_cgi(const std::string& full_message, std::string root, const std::string& location, const std::string& upload_pass, int output_fd)
 {
 	if (root != "" && root[root.length() -1] != '/') root += '/';
 	using std::string;
@@ -180,7 +183,7 @@ void execute_cgi(const std::string& full_message, std::string root, const std::s
 		logn("No QUERY_STRING will be defined/passed to stdin");
 	string content_type = get_header_info(full_message, "Content-Type");
 	bool define_content = (content_type != "");
-	setup_and_exec(output_fd, request, define_query, query_string, define_path, path_info, exec_path, content_type, define_content);
+	setup_and_exec(output_fd, request, define_query, query_string, define_path, path_info, exec_path, content_type, define_content, upload_pass);
 }
 
 

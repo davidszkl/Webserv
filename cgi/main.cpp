@@ -9,9 +9,9 @@
 
 int main()
 {
-	string full_message, root, location;
+	string full_message, root, location, upload_pass;
 	full_message = "\
-POST /cgi-script.py HTTP/1.1\r\n\
+POST /upload.py HTTP/1.1\r\n\
 Host: 4242\r\n\
 Accept:  text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8\r\n\
 Accept-Encoding:  gzip, deflate\r\n\
@@ -44,8 +44,9 @@ magnig=fique\n\
 -----------------------------186655929040397696981263301363--\r\n";
 	root = "/media/martin/Bowser/webserv/cgi/cgi-bin";
 	location = "/";
+	upload_pass = "/tmp";
 	if (is_valid_for_cgi(full_message, root, location))
-		execute_cgi(full_message, root, location, 1);
+		execute_cgi(full_message, root, location, upload_pass, 1);
 }
 
 

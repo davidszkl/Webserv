@@ -35,13 +35,7 @@ if request_method == 'GET':
 	query_string = os.getenv('QUERY_STRING')
 elif request_method == 'POST':
 	print('<debug_ouput>Reading query string from stdin...</debug_output>')
-	try:
-		query_string = ""
-		while True:
-			print("HERE")
-			query_string += input()
-	except EOFError as e:
-		pass
+	query_string = sys.stdin.read()
 else:
 	print('<output>Invalid request method:', request_method, '</ouput>')
 
