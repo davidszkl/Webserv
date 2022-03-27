@@ -47,9 +47,9 @@ fp.write(file_body)
 
 fp.close()
 
-response_body = '''<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
+response_body = f'''<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
 <TITLE>Upload successful</TITLE></HEAD><BODY>
-<H1>The document has been uploaded</H1>
+<H1>{file_name} has been uploaded</H1>
 </BODY></HTML>'''
 
 print(f'''HTTP/1.1 200 OK\r

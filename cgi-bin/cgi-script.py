@@ -35,12 +35,9 @@ if request_method == 'GET':
 	query_string = os.getenv('QUERY_STRING')
 elif request_method == 'POST':
 	print('<debug_ouput>Reading query string from stdin...</debug_output>')
-	try:
-		query_string = input()
-	except EOFError as e:
-		query_string = None
+	query_string = sys.stdin.read()
 else:
-	print('<output>Invlid request method:', request_method, '</ouput>')
+	print('<output>Invalid request method:', request_method, '</ouput>')
 
 path_info = os.getenv('PATH_INFO')
 
@@ -56,6 +53,8 @@ if path_info != None:
 	print('<output>')
 	print('path_info len:', len(path_info))
 	print('</output>')
+
+print("CONTENT_TYPE ==", os.getenv('CONTENT_TYPE'));
 
 print('</body>')
 print('</html>')

@@ -6,11 +6,13 @@
 /*   By: mlefevre <mlefevre@student.s19.be>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/10/05 15:35:52 by mlefevre          #+#    #+#             */
-/*   Updated: 2022/03/07 17:06:59 by mlefevre         ###   ########.fr       */
+/*   Updated: 2022/03/25 22:25:04 by mlefevre         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <string>
 
 static size_t ft_strlen(const char * s)
 {
@@ -142,4 +144,37 @@ char	**ft_split(char const *s, char c)
 	if (!myfrees(r - n2, n2))
 		return (0);
 	return (r - n2);
+}
+
+static size_t tab_len(char **tab)
+{
+	size_t i = 0;
+	while (tab[i])
+		i++;
+	return i;
+}
+
+void fix_content_in_split(char**& split)
+{
+	using std::string;
+	size_t l = tab_len(split);
+	for (int i = 0; split[i] && split[i + 1]; i++)
+	{
+		if (string(split[i]).substr(0, string("CONTENT_TYPE=").length()) != "CONTENT_TYPE=")
+			continue;
+		l--;
+		string s = string(split[i]) + " " + string(split[i + 1]);
+		free(split[i]);
+		free(split[i + 1]);
+		split[i] = ft_strdup(s.c_str());
+		int j;
+		for (j = i + 1; split[j+1]; j++)
+			std::swap(split[j], split[j + 1]);
+		std::swap(split[j], split[j + 1]);
+	}
+	if (!myfrees(split, l))
+	{
+		perror("fix_content_in_split()");
+		exit(1);
+	}
 }
