@@ -70,7 +70,7 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
 //if post && define_query ->  pass it to stdin
 //if get && define query -> pass it as env
 //if define path -> pass it as env
-static void setup_and_exec(int output_fd,
+static int setup_and_exec(int output_fd,
 		std::string request,
 		bool define_query,
 		std::string query_string,
@@ -99,12 +99,12 @@ static void setup_and_exec(int output_fd,
 	if (pipe(pipefds) == -1)
 	{
 		perror("pipe()");
-		return;
+		return 1;
 	}
 	pid_t pid = fork();
 	if (pid == -1) {
 		perror("fork()");
-			return;
+			return 1;
 	} else if (pid == 0) {	
 		close(pipefds[1]);
 		if (-1 == dup2(pipefds[0], 0)) {
@@ -132,8 +132,9 @@ static void setup_and_exec(int output_fd,
 		write(pipefds[1], query_string.c_str(), query_string.length());
 	close(pipefds[0]);
 	close(pipefds[1]);
-	waitpid(pid, 0, 0);
-	return;
+	int status;
+	waitpid(pid, &status, 0);
+	return WEXITSTATUS(status);
 }
 
 /*
@@ -142,7 +143,7 @@ static void setup_and_exec(int output_fd,
 	output_fd is where the python script will write its ouput.
 	The http message should be valid! (is_valid_for_cgi must have returned true with the same message/root)
  */
-void execute_cgi(const std::string& full_message, std::string root, const std::string& location, const std::string& upload_pass, int output_fd)
+int execute_cgi(const std::string& full_message, std::string root, const std::string& location, const std::string& upload_pass, int output_fd)
 {
 	if (root != "" && root[root.length() -1] != '/') root += '/';
 	using std::string;
@@ -183,7 +184,7 @@ void execute_cgi(const std::string& full_message, std::string root, const std::s
 		logn("No QUERY_STRING will be defined/passed to stdin");
 	string content_type = get_header_info(full_message, "Content-Type");
 	bool define_content = (content_type != "");
-	setup_and_exec(output_fd, request, define_query, query_string, define_path, path_info, exec_path, content_type, define_content, upload_pass);
+	return setup_and_exec(output_fd, request, define_query, query_string, define_path, path_info, exec_path, content_type, define_content, upload_pass);
 }
 
 

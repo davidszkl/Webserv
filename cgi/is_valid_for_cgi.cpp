@@ -68,7 +68,7 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
 	root is the root of the server.
 	Return 1 on success, 0 on failure or error page number
  */
-int is_valid_for_cgi(const std::string& full_message, std::string root, const std::string& location)
+int is_valid_for_cgi(const std::string& full_message, std::string root, const std::string& location, std::size_t max_body)
 {
 	if (root != "" && root[root.length() -1] != '/') root += '/';
 	logn("Checking if message is valid for cgi...");
@@ -113,6 +113,12 @@ int is_valid_for_cgi(const std::string& full_message, std::string root, const st
 		std::size_t cl;
 		try{
 			cl = std::atoi(content_length.c_str());
+			if (cl > max_body)
+			{
+				log(cl); log(" is greater than "); log(max_body);
+				logn(" is_valid_for_cgi returned 413");
+				return 413;
+			}
 		} catch(...)
 		{
 			logn(content_length + " is an invalid Content-Legnth. is_valid_for cgi returns false");

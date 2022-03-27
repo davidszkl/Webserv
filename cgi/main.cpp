@@ -45,7 +45,8 @@ magnig=fique\n\
 	root = "/media/martin/Bowser/webserv/cgi/cgi-bin";
 	location = "/";
 	upload_pass = "/tmp";
-	if (is_valid_for_cgi(full_message, root, location))
+	upload_pass = "";
+	if (is_valid_for_cgi(full_message, root, location, 50))
 		execute_cgi(full_message, root, location, upload_pass, 1);
 }
 

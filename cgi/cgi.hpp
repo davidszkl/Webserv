@@ -7,7 +7,7 @@
 	root is the root of the server.
 	Return 1 on success, 0 on failure or the number of error (415, 411, 413, ...);
  */
-int is_valid_for_cgi(const string& full_message, string root, const string& location);
+int is_valid_for_cgi(const string& full_message, string root, const string& location, std::size_t max_body);
 
 /*
 	This function needs the first line of the http header and the body, so pass the full http message in full_message.
@@ -15,7 +15,7 @@ int is_valid_for_cgi(const string& full_message, string root, const string& loca
 	ouput_fd is where the python script will write its ouput.
 	The http message should be valid! (is_valid_for_cgi must have returned true with the same message/root)
  */
-void execute_cgi(const string& full_message, string root, const string& location, const string& upload_pass, int ouput_fd);
+int execute_cgi(const string& full_message, string root, const string& location, const string& upload_pass, int ouput_fd);
 
 /*
 header must end with \r\n\r\n. Everything after that is ignored.
