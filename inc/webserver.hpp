@@ -66,7 +66,7 @@ public:
 	void	clear_request();
 	void	request_handler(const pollfd& fd, server& server);
 	void	send_response(const pollfd& fd, string filename, bool error);
-	void	send_autoindex(const pollfd &fd, const string& current_location);
+	void	send_autoindex(const pollfd &fd);
 	bool	is_deletable(server& server, const string& filename) const;
 	int		get_fd_ready()			const;
 	int		get_server_id(int fd)	const;
@@ -77,7 +77,7 @@ public:
 	int		get_config_index(unsigned short _port, const vector<config>& _configs, const vector<string>& header_lines);
 	int		get_location_index(const string &uri, const config conf);
 	string	get_code_description(int code) const;
-	string	autoindex(const string& path, const string& location) const;
+	string	autoindex(const string& path) const;
 	size_t	get_read_bytes(string str) const;
 
 	class webserver_exception : public std::runtime_error

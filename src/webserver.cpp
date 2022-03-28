@@ -238,7 +238,7 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
     if (current_block.autoindex && stat(_http_request._path.c_str(), &s) == 0 && (s.st_mode & S_IFDIR))
     {
 		logn("AUTOINDEX" + current_block.path);
-		send_autoindex(fd, current_block.path);
+		send_autoindex(fd);
 		return 0;
     }
 	else if (!file_exists(_http_request._path)) {
@@ -328,14 +328,14 @@ void webserver::send_response(const pollfd &fd, string filename, bool body) {
 	send(fd.fd, http_response.c_str(), http_response.size(), 0);
 }
 
-void webserver::send_autoindex(const pollfd& fd, const string& current_location) {
+void webserver::send_autoindex(const pollfd& fd) {
 	string http_response;
 
 	http_response += "HTTP/1.1 ";
 	http_response += i_to_str(_response_code);
 	http_response += get_code_description(_response_code);
 	http_response += "\r\n\r\n";
-	http_response += autoindex(_http_request._path, current_location);
+	http_response += autoindex(_http_request._path);
 	send(fd.fd, http_response.c_str(), http_response.size(), 0);
 }
 
@@ -586,10 +586,11 @@ int webserver::get_location_index(const string& uri, const config conf)
    return n; 
 }
 
-string webserver::autoindex(const string& path, const string& current_location) const
+string webserver::autoindex(const string& path) const
 {
 	string	body;
 	DIR		*dir;
+	const bool missing_slash = (_http_request._uri[_http_request._uri.length() -1] != '/');
 
 	dir = opendir(path.c_str());
 	if (!dir)
@@ -609,11 +610,10 @@ string webserver::autoindex(const string& path, const string& current_location) 
 		if (!ent)
 			break;
 		file_ent = ent->d_name;
-		body += "<a href='" + file_ent + "'>" + file_ent + "</a>\r\n";
+		body += "<a href='" + _http_request._uri + (missing_slash ? "/" : "") + file_ent + "'>" + file_ent + "</a>\r\n";
 	}
 	body += "</body>\n</html>";
 	logn("index body: " + body);
 	closedir(dir);
-	(void)current_location;
 	return body;
 }
