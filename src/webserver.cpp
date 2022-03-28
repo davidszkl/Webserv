@@ -220,9 +220,10 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	if (_http_request._path[_http_request._path.size() - 1] == '/')
 		_http_request._path += current_block.index;
 	logn("requestpath: " + _http_request._path);
-    if(current_block.autoindex)
+    if (current_block.autoindex)
     {
        response_file =  autoindex(_http_request._path);
+	   _response_code = OK;
     }
 	else if (!file_exists(_http_request._path)) {
 		_response_code = NOT_FOUND;
@@ -568,4 +569,35 @@ int webserver::get_location_index(const string& uri, const config conf)
         if (results[i] > results[n])
             n = i;
    return n; 
+}
+
+string webserver::autoindex(const string& path) const
+{
+	string	body;
+	DIR		*dir;
+
+	dir = opendir(path.c_str());
+	if (!dir)
+		return "error";
+	body += "<html>\r\n<head>		\
+			<title>Index of "		\
+			+ path					\
+			+ "</title></head>\r\n	\
+			<body>\r\n				\
+			<h1>Index of "			\
+			+ path					\
+			+ "</h1><hr><pre>\r\n";
+	string file_ent;
+	struct dirent *ent;
+	while ((ent = readdir(dir)))
+	{
+		if (!ent)
+			break;
+		file_ent = ent->d_name;
+		body += "<a href='" + file_ent + "'>" + file_ent + "</a>\r\n";
+	}
+	body += "</body></html>";
+	cerr << body << endl;
+	closedir(dir);
+	return body;
 }
