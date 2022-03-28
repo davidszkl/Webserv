@@ -52,7 +52,7 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
 {
 	for (std::size_t i = 0; i < path.length(); i++)
 	{
-		if (path[i] == '/' && i + 1 != path.length())
+		if (i == 0 || (path[i] == '/' && i + 1 != path.length()))
 		{
 			std::string file = path.substr(i+1, get_next_slash(&path[i+1]));
 			if (is_py(file) && is_exec(path.substr(0, i + 1 + file.length()), root))
@@ -65,10 +65,12 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
 /*
 	checks if http message (header + body) is valid for a cgi response.
 	full_message is the whole http message received from the client.
-	root is the root of the server.
-	Return 1 on success, 0 on failure or error page number
+	Return 1 on success, 0 on failure or the number of error (415, 411 or 413);
+	root -> root of location block
+	location -> path of location block
+	max_body -> max size of client body allowed
  */
-int is_valid_for_cgi(const std::string& full_message, std::string root, const std::string& location)
+int is_valid_for_cgi(const std::string& full_message, std::string root, const std::string& location, std::size_t max_body)
 {
 	if (root != "" && root[root.length() -1] != '/') root += '/';
 	logn("Checking if message is valid for cgi...");
@@ -95,7 +97,10 @@ int is_valid_for_cgi(const std::string& full_message, std::string root, const st
 	if (request == "POST")
 	{
 		std::string content_type = get_header_info(full_message, "Content-Type");
-		if (content_type != "application/x-www-form-urlencoded")
+		if (content_type.length() > string("multipart/form-data; boundary=").length()
+		&& content_type.compare(0, 30, "multipart/form-data; boundary=") == 0)
+			logn("POST multipart detected if is_valid_for_cgi: " + content_type);
+		else if (content_type != "application/x-www-form-urlencoded")
 		{
 			logn("CGI does not support this Content-Type: " + content_type);
 			logn("is_valid_for_cgi returned 415");
@@ -110,16 +115,19 @@ int is_valid_for_cgi(const std::string& full_message, std::string root, const st
 		std::size_t cl;
 		try{
 			cl = std::atoi(content_length.c_str());
+			if (cl > max_body)
+			{
+				log(cl); log(" is greater than "); log(max_body);
+				logn(" is_valid_for_cgi returned 413");
+				return 413;
+			}
 		} catch(...)
 		{
 			logn(content_length + " is an invalid Content-Legnth. is_valid_for cgi returns false");
 			return false;
 		}
 		if (full_message.find("\r\n\r\n") + cl + 4 >= full_message.length())
-		{
-			logn("Content-Length too large");
-			return 413;
-		}
+			logn("Warning: Content-Length too large");
 	}
 	logn("http message is valid for cgi");
 	return true;

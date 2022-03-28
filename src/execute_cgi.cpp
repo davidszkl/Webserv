@@ -5,6 +5,8 @@
 #include <sys/wait.h>
 #include <stdio.h>
 
+void fix_content_in_split(char**& split);
+
 char	**ft_split(char const *s, char c);
 
 /*
@@ -68,13 +70,16 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
 //if post && define_query ->  pass it to stdin
 //if get && define query -> pass it as env
 //if define path -> pass it as env
-static void setup_and_exec(int output_fd,
+static int setup_and_exec(int output_fd,
 		std::string request,
 		bool define_query,
 		std::string query_string,
 		bool define_path,
 		std::string path_info,
-		std::string exec_path)
+		std::string exec_path,
+		std::string content_type,
+		bool define_content,
+		const std::string& upload_pass)
 {
 	std::string command = "/usr/bin/env";
 	std::string exec_path2 = exec_path;
@@ -85,18 +90,22 @@ static void setup_and_exec(int output_fd,
 		command += " QUERY_STRING=" + query_string;
 	if (define_path)
 		command += " PATH_INFO=" + path_info;
+	if (define_content)
+		command += " CONTENT_TYPE=" + content_type;
 	command += " REQUEST_METHOD=" + request;
+	if (upload_pass != "")
+		command += " UPLOAD_PASS=" + upload_pass;
 	command += " " + exec_path;
 	int pipefds[2];
 	if (pipe(pipefds) == -1)
 	{
 		perror("pipe()");
-		return;
+		return 1;
 	}
 	pid_t pid = fork();
 	if (pid == -1) {
 		perror("fork()");
-			return;
+			return 1;
 	} else if (pid == 0) {	
 		close(pipefds[1]);
 		if (-1 == dup2(pipefds[0], 0)) {
@@ -110,11 +119,12 @@ static void setup_and_exec(int output_fd,
 			perror("dup2()"); exit(1);
 		}
 		if (output_fd != 1) close(output_fd);
-		const char **split = const_cast<const char**>(ft_split(command.c_str(), ' '));
+		char **split = ft_split(command.c_str(), ' ');
 		if (!split) { perror("ft_split()"); exit(1); }
+		fix_content_in_split(split);
 		logn("executing " + exec_path + ":");
 		execve(split[0], (char * const *)split, 0);
-		ft_freetab(split);
+		ft_freetab(const_cast<const char**>(split));
 		perror("execve()");
 		exit(1);
 	}
@@ -122,17 +132,26 @@ static void setup_and_exec(int output_fd,
 		write(pipefds[1], query_string.c_str(), query_string.length());
 	close(pipefds[0]);
 	close(pipefds[1]);
-	waitpid(pid, 0, 0);
-	return;
+	int status = 0;
+	waitpid(pid, &status, 0);
+	int rval = WEXITSTATUS(status);
+	if (rval == 403 % 256 || rval == 415 % 256) //because process rval fits in only one byte...
+		rval += 256;
+	return rval;
 }
 
 /*
 	This function needs the first line of the http header and the body, so pass the full http message in full_message.
-	root is the root of the server.
-	output_fd is where the python script will write its ouput.
+	root -> root of location block
+	location -> path of location block
+	ouput_fd is where the python script will write its output.
 	The http message should be valid! (is_valid_for_cgi must have returned true with the same message/root)
+	return values:
+		0 -> success
+		1 -> system error
+		415 or 403 -> error page to display
  */
-void execute_cgi(const std::string& full_message, std::string root, const std::string& location, int output_fd)
+int execute_cgi(const std::string& full_message, std::string root, const std::string& location, const std::string& upload_pass, int output_fd)
 {
 	if (root != "" && root[root.length() -1] != '/') root += '/';
 	using std::string;
@@ -171,7 +190,9 @@ void execute_cgi(const std::string& full_message, std::string root, const std::s
 		logn("QUERY_STRING==" + query_string);
 	else
 		logn("No QUERY_STRING will be defined/passed to stdin");
-	setup_and_exec(output_fd, request, define_query, query_string, define_path, path_info, exec_path);
+	string content_type = get_header_info(full_message, "Content-Type");
+	bool define_content = (content_type != "");
+	return setup_and_exec(output_fd, request, define_query, query_string, define_path, path_info, exec_path, content_type, define_content, upload_pass);
 }
 
 

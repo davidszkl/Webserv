@@ -8,6 +8,12 @@ void server_shutdown(int signbr) {
 	(void)signbr;
 	_server_alive = false;
 }
+
+void show_detailed(char *str) {
+	for (size_t n = 0; n < strlen(str); n++)
+		cerr << n + 1 << ": \'" << str[n] << "\'" << "= " << (int)str[n] << endl;
+}
+
 //TO_ERASE
 
 webserver::webserver(vector<config> config_vector):	_response_code(404), _socklen(sizeof(_client_addr))
@@ -132,25 +138,31 @@ void webserver::listen_all()
 
 int webserver::read_msg(int fd) {;
 	char buffer[100] = {0};
-	int end = 0;
 	clear_request();
 	cerr << "Receiving message:\n";
-	while(!find_crlf(string(buffer)))
+	logn("Method: " + _http_request._method);
+	while(!find_crlf(string(_http_request._full_request)))
 	{
-		end = recv(fd, &buffer, 100, 0);
+		int end = recv(fd, &buffer, 100, 0);
 		if (end < 0)
 			return -1;
 		buffer[end] = '\0';
 		_http_request._full_request += buffer;
 	}
-	if (is_post(_http_request._full_request))
+	if (!_http_request._full_request.find("POST"))
 	{
 		_content_length = std::atoi(get_header_info(_http_request._full_request, "Content-Length").c_str());
-		while(!find_crlf(string(buffer)))
+		log("_content_length = ");
+		logn(_content_length);
+		size_t read_bytes = get_read_bytes(_http_request._full_request);
+		log("read_bytes = ");
+		logn(read_bytes);
+		while(read_bytes < _content_length)
 		{
-			end = recv(fd, &buffer, 100, 0);
+			int end = recv(fd, &buffer, 100, 0);
 			if (end < 0)
 				return -1;
+			read_bytes += end;
 			buffer[end] = '\0';
 			_http_request._full_request += buffer;
 		}
@@ -165,10 +177,8 @@ bool find_crlf(string str) {
 	return false;
 }
 
-bool is_post(string str) {
-	if (str.find("POST") != string::npos)
-		return true;
-	return false;
+size_t webserver::get_read_bytes(string str) const {
+	return (str.size() - str.find("\r\n\r\n") + 4);
 }
 
 void webserver::request_handler(const pollfd & fd, server & server) {
@@ -334,7 +344,9 @@ void webserver::init_request(const server & server) {
 			break ;
 	}
 	std::stringstream ss(_http_request._header_lines[0]);
+	logn("HEADER_LINES: " + _http_request._header_lines[0]);
 	ss >> _http_request._method;
+	logn("METHOD: " + _http_request._method);
 	ss >> _http_request._uri;
 	ss >> _http_request._version;
 	_config_index = get_config_index(server._port, server._configs, _http_request._header_lines);
