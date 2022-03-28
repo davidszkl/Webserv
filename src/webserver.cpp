@@ -114,7 +114,10 @@ void webserver::listen_all()
 		}
 
 		if (!(_pollsock[0].revents & POLLIN))
+		{
+			sleep(1);
 			continue ;
+		}
 		int read_rval = read_msg(_pollsock[0].fd);
 		if (read_rval == -1) {
 			cerr << "Fatal problem occured during connection with " << accept_fd << endl;
@@ -207,7 +210,7 @@ void webserver::request_handler(const pollfd & fd, server & server) {
 	else if (_http_request._method	== "GET")
 		handle_GET(fd, server);
 	else if (_http_request._method	== "POST")
-		handle_POST(fd);
+		handle_POST(fd, server);
 	else if (_http_request._method	== "DELETE")
 		handle_DELETE(fd, server);
 	else {
@@ -220,6 +223,8 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	bool body					= true;
 	std::string& response_file	= _http_request._path;
 	const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
+	struct stat s;
+
 	if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),
 	 	"GET")
 		== current_block.allowed_methods.end())
@@ -230,18 +235,19 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	if (_http_request._path[_http_request._path.size() - 1] == '/')
 		_http_request._path += current_block.index;
 	logn("requestpath: " + _http_request._path);
-    if (current_block.autoindex)
+    if (current_block.autoindex && stat(_http_request._path.c_str(), &s) == 0 && (s.st_mode & S_IFDIR))
     {
-       response_file =  autoindex(_http_request._path);
-	   _response_code = OK;
+		logn("AUTOINDEX" + current_block.path);
+		send_autoindex(fd, current_block.path);
+		return 0;
     }
 	else if (!file_exists(_http_request._path)) {
-		_response_code = NOT_FOUND;
-		response_file = server._configs[_config_index].error_pages[NOT_FOUND];
+		_response_code	= NOT_FOUND;
+		response_file	= server._configs[_config_index].error_pages[NOT_FOUND];
 	}
 	else if (_http_request._path.find("server_files") == string::npos) {
-		_response_code = FORBIDDEN;
-		response_file = server._configs[_config_index].error_pages[FORBIDDEN];
+		_response_code	= FORBIDDEN;
+		response_file	= server._configs[_config_index].error_pages[FORBIDDEN];
 	}
 	else
 		_response_code = OK;
@@ -250,7 +256,9 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	return 0;
 }
 
-int	webserver::handle_POST(const pollfd &fd) {
+
+
+int	webserver::handle_POST(const pollfd &fd, server &server) {
     bool body					= true;
     std::string& response_file	= _http_request._path;
     const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
@@ -299,17 +307,11 @@ int	webserver::handle_DELETE(const pollfd &fd, server& server) {
 	}
 	else
 	{
-		if (is_deletable(server, response_file))
-		{
-			_response_code = NO_CONTENT;
-			//remove ressource;
-			body = false;
-		}
-		else
-		{
+		body = false;
+		if (remove(_http_request._path.c_str()))
 			_response_code = FORBIDDEN;
-			response_file = server._configs[_config_index].error_pages[FORBIDDEN];
-		}
+		else
+			_response_code = NO_CONTENT;			
 	}
 	send_response(fd, response_file, body);
 	return 0;
@@ -320,10 +322,20 @@ void webserver::send_response(const pollfd &fd, string filename, bool body) {
 	http_response += "HTTP/1.1 ";
 	http_response += i_to_str(_response_code);
 	http_response += get_code_description(_response_code);
-	if (body) {
-		http_response += "\r\n\r\n";
+	http_response += "\r\n\r\n";
+	if (body)
 		http_response += slurp_file(filename);
-	}
+	send(fd.fd, http_response.c_str(), http_response.size(), 0);
+}
+
+void webserver::send_autoindex(const pollfd& fd, const string& current_location) {
+	string http_response;
+
+	http_response += "HTTP/1.1 ";
+	http_response += i_to_str(_response_code);
+	http_response += get_code_description(_response_code);
+	http_response += "\r\n\r\n";
+	http_response += autoindex(_http_request._path, current_location);
 	send(fd.fd, http_response.c_str(), http_response.size(), 0);
 }
 
@@ -530,15 +542,6 @@ int webserver::get_server_id(int fd_tofind) const {
 	return -1;
 }
 
-bool	webserver::is_deletable(server & server, const std::string& filename) const {
-	for (server::map_it it = server._configs[0].error_pages.begin(); it != server._configs[0].error_pages.end(); it++)
-		if (filename == it->second)
-			return false;
-	if (filename == "favicon.ico")		
-		return false;
-	return true;
-}
-
 int webserver::get_config_index(unsigned short _port,
     const vector<config>& _configs,
     const vector<string>& header_lines)
@@ -583,7 +586,7 @@ int webserver::get_location_index(const string& uri, const config conf)
    return n; 
 }
 
-string webserver::autoindex(const string& path) const
+string webserver::autoindex(const string& path, const string& current_location) const
 {
 	string	body;
 	DIR		*dir;
@@ -591,14 +594,14 @@ string webserver::autoindex(const string& path) const
 	dir = opendir(path.c_str());
 	if (!dir)
 		return "error";
-	body += "<html>\r\n<head>		\
-			<title>Index of "		\
-			+ path					\
-			+ "</title></head>\r\n	\
-			<body>\r\n				\
-			<h1>Index of "			\
-			+ path					\
-			+ "</h1><hr><pre>\r\n";
+	body += "<html>\r\n<head>\n\
+<title>Index of "
++ path
++ "</title></head>\r\n\
+<body>\r\n\
+<h1>Index of "
++ path
++ "</h1><hr><pre>\r\n";
 	string file_ent;
 	struct dirent *ent;
 	while ((ent = readdir(dir)))
@@ -608,8 +611,9 @@ string webserver::autoindex(const string& path) const
 		file_ent = ent->d_name;
 		body += "<a href='" + file_ent + "'>" + file_ent + "</a>\r\n";
 	}
-	body += "</body></html>";
-	cerr << body << endl;
+	body += "</body>\n</html>";
+	logn("index body: " + body);
 	closedir(dir);
+	(void)current_location;
 	return body;
 }

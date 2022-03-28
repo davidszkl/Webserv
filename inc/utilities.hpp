@@ -16,6 +16,8 @@
 #include <fcntl.h>		//server
 #include <unistd.h>		//server
 #include <dirent.h>
+#include <stdio.h>
+#include <sys/stat.h>
 
 #include <arpa/inet.h>	//server
 #include <netinet/in.h>	//server
