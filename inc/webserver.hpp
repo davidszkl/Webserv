@@ -67,6 +67,7 @@ public:
 	void	request_handler(const pollfd& fd, server& server);
 	void	send_response(const pollfd& fd, string filename, bool error);
 	void	send_autoindex(const pollfd &fd);
+	void	send_redirect(const pollfd& fd, const string& redirect);
 	bool	is_deletable(server& server, const string& filename) const;
 	int		get_fd_ready()			const;
 	int		get_server_id(int fd)	const;

@@ -241,6 +241,12 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 		send_autoindex(fd);
 		return 0;
     }
+	else if (current_block.redirect != "")
+	{
+		_response_code = MOVED_PERMANENTLY;
+		send_redirect(fd, current_block.redirect);
+		return 0;
+	}
 	else if (!file_exists(_http_request._path)) {
 		_response_code	= NOT_FOUND;
 		response_file	= server._configs[_config_index].error_pages[NOT_FOUND];
@@ -256,6 +262,18 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	return 0;
 }
 
+void webserver::send_redirect(const pollfd& fd, const string& redirect)
+{
+	string http_response;
+
+	http_response += "HTTP/1.1 ";
+	http_response += i_to_str(_response_code);
+	http_response += get_code_description(_response_code);
+	http_response += "\r\n\r\n";
+	http_response += ("Location: " + redirect);
+	http_response += "\r\n\r\n";
+	send(fd.fd, http_response.c_str(), http_response.size(), 0);
+}
 
 
 int	webserver::handle_POST(const pollfd &fd, server &server) {
