@@ -7,6 +7,8 @@
 
 #include <signal.h>									//TO_ERASE
 
+#define URI_MAX 1024
+
 enum RESPONSE_CODES {
 	OK					= 200,	//Martin
 	CREATED				= 201,	//Martin
@@ -102,7 +104,6 @@ public:
 	
 private:
 
-	int				_response_code;
 	vector<server>	_servers;
 	vector<pollfd>	_pollsock;
 	http_request	_http_request;
@@ -113,6 +114,7 @@ private:
 	string			_root;
 	int				_config_index;
 	int				_location_index;
+	int				_response_code;
 };
 
 void 		poll_result(const pollfd& fd);

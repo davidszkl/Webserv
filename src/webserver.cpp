@@ -1,9 +1,9 @@
 #include "webserver.hpp"
 #include "debug.hpp"
 
+//TO_ERASE
 bool _server_alive = true;
 
-//TO_ERASE
 void server_shutdown(int signbr) {
 	(void)signbr;
 	_server_alive = false;
@@ -18,8 +18,10 @@ void show_detailed(char *str) {
 
 webserver::webserver(vector<config> config_vector):	_response_code(404), _socklen(sizeof(_client_addr))
 {
+	//TO_ERASE
 	signal(SIGINT, &server_shutdown);
 	_server_alive = true;
+	//TO_ERASE
 	memset(&_pollfd, 0, sizeof(_pollfd));
 	_pollfd.fd	= -1;
 	try {
@@ -43,10 +45,11 @@ webserver::webserver(vector<config> config_vector):	_response_code(404), _sockle
 
 webserver::~webserver() {
 	logn("webserv destructor");
-	for (size_t n = 0; n < _servers.size(); n++) {					//~webserv() handles closing of server sockets because
+	for (size_t n = 0; n < _servers.size(); n++) {
 		if (_servers[n]._sockfd)
 		{
-			cerr << "CLOSING FD " << _servers[n]._sockfd << endl;	//vector calls server destructor all the time
+			log("CLOSING FD ");
+			logn(_servers[n]._sockfd);
 			close(_servers[n]._sockfd);
 		}
 	}
@@ -57,7 +60,7 @@ void webserver::init_pollsock()
 	pollfd listener;
 	memset(&listener, 0, sizeof(listener));
 	_pollsock.push_back(listener);
-	for (size_t n = 0; n < _servers.size(); n++)		//initialize vector of pollfd that contains all server-sockets
+	for (size_t n = 0; n < _servers.size(); n++)
 	{
 		pollfd tmp;
 		memset(&tmp, 0, sizeof(tmp));
@@ -67,7 +70,7 @@ void webserver::init_pollsock()
 	}
 }
 
-int webserver::get_fd_ready() const {					//get the first open fd out of poll()
+int webserver::get_fd_ready() const {
 	for (size_t n = 0; n < _pollsock.size(); n++)
 		if (_pollsock[n].revents & POLLIN)
 			return _pollsock[n].fd;
@@ -186,9 +189,7 @@ size_t webserver::get_read_bytes(string str) const {
 
 void webserver::request_handler(const pollfd & fd, server & server) {
 	init_request(server);
-	logn("request=================");
-	logn(_http_request._full_request);
-	logn("request=================");
+	logn("request=================\n" + _http_request._full_request + "\nrequest=================");
 	logn("uri: " + _http_request._full_request);
 	if (!_http_request._method.size()	||
 		!_http_request._uri.size()		||
@@ -197,7 +198,7 @@ void webserver::request_handler(const pollfd & fd, server & server) {
 		_response_code = BAD_REQUEST;
 		send_response(fd, "", false);
 	}
-	else if (_http_request._uri.size() > 1024)
+	else if (_http_request._uri.size() > URI_MAX)
 	{
 		_response_code = REQUEST_URI_TOO_LONG;
 		send_response(fd, "", false);
@@ -222,12 +223,11 @@ void webserver::request_handler(const pollfd & fd, server & server) {
 int	webserver::handle_GET(const pollfd &fd, server & server) {
 	bool body					= true;
 	std::string& response_file	= _http_request._path;
-	const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
+	const config::location& current_block = server._configs[_config_index].location_blocks[_location_index];
 	struct stat s;
 
 	if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),
-	 	"GET")
-		== current_block.allowed_methods.end())
+	 	"GET") == current_block.allowed_methods.end())
 	{
 		_response_code = METHOD_NOT_ALLOWED;
 		response_file = server._configs[_config_index].error_pages[METHOD_NOT_ALLOWED];
@@ -237,8 +237,8 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	logn("requestpath: " + _http_request._path);
     if (current_block.autoindex && stat(_http_request._path.c_str(), &s) == 0 && (s.st_mode & S_IFDIR))
     {
-		logn("AUTOINDEX" + current_block.path);
-		send_autoindex(fd);
+		logn("autoindexing from " + current_block.path);
+		send_autoindex(fd, current_block.path);
 		return 0;
     }
 	else if (current_block.redirect != "")
