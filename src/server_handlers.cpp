@@ -60,9 +60,10 @@ void webserver::send_redirect(const pollfd& fd, const string& redirect)
 	http_response += "HTTP/1.1 ";
 	http_response += i_to_str(_response_code);
 	http_response += get_code_description(_response_code);
-	http_response += "\r\n\r\n";
+	http_response += "\r\n";
 	http_response += ("Location: " + redirect);
 	http_response += "\r\n\r\n";
+	cerr << http_response << endl;
 	send(fd.fd, http_response.c_str(), http_response.size(), 0);
 }
 

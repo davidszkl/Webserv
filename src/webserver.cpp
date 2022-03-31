@@ -109,6 +109,7 @@ void webserver::listen_all()
 			logn(" accepted");
 			log("Connection fd is ");
 			logn(_pollsock[0].fd);
+			logn("");
 			continue ;
 		}
 
@@ -125,6 +126,7 @@ void webserver::listen_all()
 			cerr << "Fatal problem occured during connection with " << accept_fd << endl;
 			log("ERRNO ");
 			logn(errno);
+			logn("");
 			throw webserver_exception("Poll fatal error");
 		}
 		try {
@@ -163,6 +165,7 @@ int webserver::read_msg(int fd) {;
 		size_t read_bytes = get_read_bytes(_http_request._full_request);
 		log("read_bytes = ");
 		logn(read_bytes);
+		logn("");
 		while(read_bytes < _content_length)
 		{
 			int end = recv(fd, &buffer, 100, 0);
@@ -174,6 +177,7 @@ int webserver::read_msg(int fd) {;
 		}
 	}
 	logn("received all of the message");
+	logn("");
 	return 0;
 }
 
@@ -189,6 +193,7 @@ void webserver::request_handler(const pollfd & fd, server & server) {
 	cerr << _http_request._header << endl;
 	logn("request=================\n" + _http_request._full_request + "\nrequest=================");
 	logn("uri: " + _http_request._full_request);
+	logn("");
 	if (!_http_request._method.size()	||
 		!_http_request._uri.size()		||
 		!_http_request._version.size())
@@ -253,6 +258,7 @@ void webserver::init_request(const server & server) {
 	_http_request._path = _root + _http_request._uri.substr(l, _http_request._uri.length() - l);
 	logn("new request_path: " + _http_request._path);
 	logn("used root: " + _root);
+	logn("");
 }
 
 void webserver::clear_errors() {						//clear servers that got shutdown for some reason
