@@ -25,10 +25,17 @@
 
 #include <stdexcept>	//server
 
-using std::cerr;
-using std::cout;
-using std::endl;
-using std::string;
-using std::vector;
-using std::map;
-using std::size_t;
+#include "debug.hpp"
+
+using namespace std;
+
+void 		poll_result(const pollfd& fd);
+bool		find_crlf(string str);
+bool		is_post(string str);
+bool	 	file_exists (const string& name);
+string		my_get_line(string from );
+string		i_to_str(int nbr);
+string		slurp_file(string file);
+string		read_header_line(string from);
+string		get_code_description(int code);
+size_t		get_read_bytes(string str);

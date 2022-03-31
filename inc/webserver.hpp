@@ -1,11 +1,10 @@
 #pragma once
 
-#include "utilities.hpp"
-
 #include "server.hpp"
 #include "cgi.hpp"
+#include "utilities.hpp"
 
-#include <signal.h>									//TO_ERASE
+#include <signal.h>				//TO_ERASE
 
 #define URI_MAX 1024
 
@@ -79,9 +78,7 @@ public:
 	int		handle_GET(const pollfd& fd, server& server);
 	int		get_config_index(unsigned short _port, const vector<config>& _configs, const vector<string>& header_lines);
 	int		get_location_index(const string &uri, const config conf);
-	string	get_code_description(int code) const;
 	string	autoindex(const string& path) const;
-	size_t	get_read_bytes(string str) const;
 
 	class webserver_exception : public std::runtime_error
 	{
@@ -104,6 +101,9 @@ public:
 	
 private:
 
+	int				_config_index;
+	int				_location_index;
+	int				_response_code;
 	vector<server>	_servers;
 	vector<pollfd>	_pollsock;
 	http_request	_http_request;
@@ -112,16 +112,4 @@ private:
 	size_t			_content_length;
 	pollfd			_pollfd;
 	string			_root;
-	int				_config_index;
-	int				_location_index;
-	int				_response_code;
 };
-
-void 		poll_result(const pollfd& fd);
-bool		find_crlf(string str);
-bool		is_post(string str);
-bool	 	file_exists (const string& name);
-string		my_get_line(string from );
-string		i_to_str(int nbr);
-string		slurp_file(string file);
-string		read_header_line(string from);

@@ -1,7 +1,7 @@
 #include "webserver.hpp"
 #include "debug.hpp"
 
-//TO_ERASE
+//TO_ERASE=====================================
 bool _server_alive = true;
 
 void server_shutdown(int signbr) {
@@ -13,15 +13,14 @@ void show_detailed(char *str) {
 	for (size_t n = 0; n < strlen(str); n++)
 		cerr << n + 1 << ": \'" << str[n] << "\'" << "= " << (int)str[n] << endl;
 }
-
-//TO_ERASE
+//TO_ERASE======================================
 
 webserver::webserver(vector<config> config_vector):	_response_code(404), _socklen(sizeof(_client_addr))
 {
-	//TO_ERASE
+	//TO_ERASE================================
 	signal(SIGINT, &server_shutdown);
 	_server_alive = true;
-	//TO_ERASE
+	//TO_ERASE================================
 	memset(&_pollfd, 0, sizeof(_pollfd));
 	_pollfd.fd	= -1;
 	try {
@@ -33,13 +32,6 @@ webserver::webserver(vector<config> config_vector):	_response_code(404), _sockle
 	}
 	catch (...) {
 		throw ;
-	}
-	for (size_t n = 0; n < _servers.size(); n++)
-	{
-		cout << "PORT " << ntohs(_servers[n]._port) << endl;
-		cout << "SIZE " << _servers[n]._configs.size() << endl;
-		for (size_t j = 0; j < _servers[n]._configs.size(); j++)
-			cout << "NAME [" << n << "][" << j << "]" <<  _servers[n]._configs[j].server_name << endl;
 	}
 }
 
@@ -104,27 +96,35 @@ void webserver::listen_all()
 		if (accept_fd < 0)
 		{
 			accept_fd = get_fd_ready();
-			cerr << "accept_fd " << accept_fd << endl;
+			log("accept_fd = ");
+			logn(accept_fd);
 			if ((_pollsock[0].fd = accept(accept_fd,								\
 										reinterpret_cast<sockaddr*>(&_client_addr),	\
 										&_socklen))									\
 										< 0)
 				throw webserver_exception("Accept failed");
 			_pollsock[0].events = POLLIN | POLLOUT;
-			cerr << "Connection on fd " << accept_fd << " accepted" << endl \
-				 << "Connection fd is " << _pollsock[0].fd << endl;
+			log("Connection on fd ");
+			log(accept_fd);
+			logn(" accepted");
+			log("Connection fd is ");
+			logn(_pollsock[0].fd);
 			continue ;
 		}
 
 		if (!(_pollsock[0].revents & POLLIN))
 		{
+			//TO ERASE==========================
 			sleep(1);
+			//TO ERASE==========================
 			continue ;
 		}
+
 		int read_rval = read_msg(_pollsock[0].fd);
 		if (read_rval == -1) {
 			cerr << "Fatal problem occured during connection with " << accept_fd << endl;
-			cerr << "ERRNO " << errno << endl;
+			log("ERRNO ");
+			logn(errno);
 			throw webserver_exception("Poll fatal error");
 		}
 		try {
@@ -177,18 +177,16 @@ int webserver::read_msg(int fd) {;
 	return 0;
 }
 
-bool find_crlf(string str) {
-	if (str.find("\r\n\r\n") != string::npos)
-		return true;
-	return false;
-}
-
-size_t webserver::get_read_bytes(string str) const {
-	return (str.size() - str.find("\r\n\r\n") + 4);
+int webserver::get_server_id(int fd_tofind) const {
+	for (size_t n = 1; n < _pollsock.size(); n++)
+		if (_pollsock[n].fd == fd_tofind)
+			return n - 1;
+	return -1;
 }
 
 void webserver::request_handler(const pollfd & fd, server & server) {
 	init_request(server);
+	cerr << _http_request._header << endl;
 	logn("request=================\n" + _http_request._full_request + "\nrequest=================");
 	logn("uri: " + _http_request._full_request);
 	if (!_http_request._method.size()	||
@@ -220,146 +218,9 @@ void webserver::request_handler(const pollfd & fd, server & server) {
 	}
 }
 
-int	webserver::handle_GET(const pollfd &fd, server & server) {
-	bool body					= true;
-	std::string& response_file	= _http_request._path;
-	const config::location& current_block = server._configs[_config_index].location_blocks[_location_index];
-	struct stat s;
-
-	if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),
-	 	"GET") == current_block.allowed_methods.end())
-	{
-		_response_code = METHOD_NOT_ALLOWED;
-		response_file = server._configs[_config_index].error_pages[METHOD_NOT_ALLOWED];
-	}
-	if (_http_request._path[_http_request._path.size() - 1] == '/')
-		_http_request._path += current_block.index;
-	logn("requestpath: " + _http_request._path);
-    if (current_block.autoindex && stat(_http_request._path.c_str(), &s) == 0 && (s.st_mode & S_IFDIR))
-    {
-		logn("autoindexing from " + current_block.path);
-		send_autoindex(fd, current_block.path);
-		return 0;
-    }
-	else if (current_block.redirect != "")
-	{
-		_response_code = MOVED_PERMANENTLY;
-		send_redirect(fd, current_block.redirect);
-		return 0;
-	}
-	else if (!file_exists(_http_request._path)) {
-		_response_code	= NOT_FOUND;
-		response_file	= server._configs[_config_index].error_pages[NOT_FOUND];
-	}
-	else if (_http_request._path.find("server_files") == string::npos) {
-		_response_code	= FORBIDDEN;
-		response_file	= server._configs[_config_index].error_pages[FORBIDDEN];
-	}
-	else
-		_response_code = OK;
-	logn("RESPONSE_FILE\n" + response_file);
-	send_response(fd, response_file, body);
-	return 0;
-}
-
-void webserver::send_redirect(const pollfd& fd, const string& redirect)
-{
-	string http_response;
-
-	http_response += "HTTP/1.1 ";
-	http_response += i_to_str(_response_code);
-	http_response += get_code_description(_response_code);
-	http_response += "\r\n\r\n";
-	http_response += ("Location: " + redirect);
-	http_response += "\r\n\r\n";
-	send(fd.fd, http_response.c_str(), http_response.size(), 0);
-}
-
-
-int	webserver::handle_POST(const pollfd &fd, server &server) {
-    bool body					= true;
-    std::string& response_file	= _http_request._path;
-    const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
-
-    if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),"POST")== current_block.allowed_methods.end())
-    {
-        _response_code = METHOD_NOT_ALLOWED;
-        response_file = server._configs[_config_index].error_pages[METHOD_NOT_ALLOWED];
-    }
-    if (_http_request._path[_http_request._path.size() - 1] == '/')
-        _http_request._path += current_block.index;
-    logn("requestpath: " + _http_request._path);
-    if (!file_exists(_http_request._path)) {
-        _response_code = NOT_FOUND;
-        response_file = server._configs[_config_index].error_pages[NOT_FOUND];
-    }
-    else if (_http_request._path.find("server_files") == string::npos) {
-        _response_code = FORBIDDEN;
-        response_file = server._configs[_config_index].error_pages[FORBIDDEN];
-    }
-    else
-        _response_code = OK;
-    logn("RESPONSE_FILE\n" + response_file);
-    send_response(fd, response_file, body);
-    return 0;
-}
-
-int	webserver::handle_DELETE(const pollfd &fd, server& server) {
-	bool body					= true;
-	std::string& response_file	= _http_request._path;
-	const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
-
-	if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),
-	 	"DELETE") == current_block.allowed_methods.end())
-	{
-		_response_code = METHOD_NOT_ALLOWED;
-		response_file = server._configs[_config_index].error_pages[METHOD_NOT_ALLOWED];
-	}
-	if (!file_exists(_http_request._path)) {
-		_response_code = NOT_FOUND;
-		response_file = server._configs[_config_index].error_pages[NOT_FOUND];
-	}
-	else if (_http_request._path.find("server_files") == std::string::npos) {
-		_response_code = FORBIDDEN;
-		response_file = server._configs[_config_index].error_pages[FORBIDDEN];
-	}
-	else
-	{
-		body = false;
-		if (remove(_http_request._path.c_str()))
-			_response_code = FORBIDDEN;
-		else
-			_response_code = NO_CONTENT;			
-	}
-	send_response(fd, response_file, body);
-	return 0;
-}
-
-void webserver::send_response(const pollfd &fd, string filename, bool body) {
-	string http_response;
-	http_response += "HTTP/1.1 ";
-	http_response += i_to_str(_response_code);
-	http_response += get_code_description(_response_code);
-	http_response += "\r\n\r\n";
-	if (body)
-		http_response += slurp_file(filename);
-	send(fd.fd, http_response.c_str(), http_response.size(), 0);
-}
-
-void webserver::send_autoindex(const pollfd& fd) {
-	string http_response;
-
-	http_response += "HTTP/1.1 ";
-	http_response += i_to_str(_response_code);
-	http_response += get_code_description(_response_code);
-	http_response += "\r\n\r\n";
-	http_response += autoindex(_http_request._path);
-	send(fd.fd, http_response.c_str(), http_response.size(), 0);
-}
-
 void webserver::init_request(const server & server) {
 	int temp_pos = _http_request._full_request.find("\r\n\r\n");
-	if (temp_pos > 0)
+	if (temp_pos)
 		_http_request._header = _http_request._full_request.substr(0, temp_pos);
 	_http_request._body = _http_request._full_request.substr(temp_pos + 4, _http_request._full_request.size());
 
@@ -399,165 +260,13 @@ void webserver::clear_errors() {						//clear servers that got shutdown for some
 	{
 		if (_pollsock[n].revents & POLLERR)
 		{
-			cerr << "killing server " << n << endl;
+			log("killing server ");
+			logn(n);
 			close(_pollsock[n].fd);
 			_servers.erase(_servers.begin() + n);
 			_pollsock.erase(_pollsock.begin() + n);
 		}
 	}
-}
-
-inline bool file_exists (const string& name) {
-    std::ifstream f(name.c_str());
-    return f.good();
-}
-
-string webserver::get_code_description(int code) const {
-	switch (code) {
-		case OK :
-			return " OK";
-		case CREATED :
-			return " CREATED";
-		case ACCEPTED :
-			return " ACCEPTED";
-		case NO_CONTENT :
-			return " NO_CONTENT";
-		case RESET_CONTENT :
-			return " RESET_CONTENT";
-		case PARTIAL_CONTENT :
-			return " PARTIAL_CONTENT";
-		case MULTIPLE_CHOICES :
-			return " MULTIPLE_CHOICES";
-		case MOVED_PERMANENTLY :
-			return " MOVED_PERMANENTLY";
-		case FOUND :
-			return " FOUND";
-		case SEE_OTHER :
-			return " SEE_OTHER";
-		case NOT_MODIFIED :
-			return " NOT_MODIFIED";
-		case USE_PROXY :
-			return " USE_PROXY";
-		case TEMPORARY_REDIRECT :
-			return " TEMPORARY_REDIRECT";
-		case BAD_REQUEST :
-			return " BAD_REQUEST";
-		case UNAUTHORIZED :
-			return " UNAUTHORIZED";
-		case FORBIDDEN :
-			return " FORBIDDEN";
-		case NOT_FOUND :
-			return " NOT_FOUND";
-		case METHOD_NOT_ALLOWED :
-			return " METHOD_NOT_ALLOWED";
-		case NOT_ACCEPTABLE :
-			return " NOT_ACCEPTABLE";
-		case PROXY_AUTHENTICATION_REQUIRED :
-			return " PROXY_AUTHENTICATION_REQUIRED";
-		case REQUEST_TIMEOUT :
-			return " REQUEST_TIMEOUT";
-		case CONFLICT :
-			return " CONFLICT";
-		case GONE :
-			return " GONE";
-		case LENGTH_REQUIRED :
-			return " LENGTH_REQUIRED";
-		case PRECONDITION_FAILED :
-			return " PRECONDITION_FAILED";
-		case REQUEST_ENTITY_TOO_LARGE :
-			return " REQUEST_ENTITY_TOO_LARGE";
-		case REQUEST_URI_TOO_LONG :
-			return " REQUEST_URI_TOO_LONG";
-		case UNSUPPORTED_MEDIA_TYPE :
-			return " UNSUPPORTED_MEDIA_TYPE";
-		case REQUESTED_RANGE_NOT_SATISFIABLE :
-			return " REQUESTED_RANGE_NOT_SATISFIABLE";
-		case EXPECTATION_FAILED :
-			return " EXPECTATION_FAILED";
-		case INTERNAL_SERVER_ERROR :
-			return " INTERNAL_SERVER_ERROR";
-		case NOT_IMPLEMENTED :
-			return " NOT_IMPLEMENTED";
-		case BAD_GATEWAY :
-			return " BAD_GATEWAY";
-		case SERVICE_UNAVAILABLE :
-			return " SERVICE_UNAVAILABLE";
-		case GATEWAY_TIMEOUT :
-			return " GATEWAY_TIMEOUT";
-		default :
-			return " ";
-	}
-}
-
-string slurp_file(string file) {
-	std::ifstream stream(file.c_str());
-	std::stringstream buffer;
-	buffer << stream.rdbuf();
-	string file_content(buffer.str());
-	if (!(file == "server_files/favicon.ico"))
-		logn("WEBPAGE\n" + file_content + "WEBPAGE\n");
-	return file_content;
-}
-
-string i_to_str(int nbr) {
-	std::stringstream ss;
-    string s;
-    ss << nbr;
-    s = ss.str();
-    return s;
-}
-
-string my_get_line(string from ) {
-	string to;
-	for (size_t n = 0; from[n] && from[n] != '\n'; n++)
-		to += from[n];
-	return to;
-}
-
-string read_header_line(string from) {
-	string str;
-	for (size_t n = 0; from[n]; n++)
-	{
-		str += from[n];
-		if (str[n] == '\n' && str.size() > 2 && str[n - 1] == '\r')
-			break;
-	}
-	return str;
-}
-
-void poll_result(const pollfd & fd){
-	cerr << "events  : "												\
-		 << (fd.events & POLLIN 	? " POLLIN |"	: "        |")		\
-		 << (fd.events & POLLHUP	? " POLLHUP |"	: "         |")		\
-		 << (fd.events & POLLERR	? " POLLERR |"	: "         |")		\
-		 << (fd.events & POLLPRI	? " POLLPRI |"	: "         |")		\
-		 << (fd.events & POLLOUT	? " POLLOUT |"	: "         |")		\
-		 << (fd.events & POLLNVAL	? " POLLNVAL |"	: "          |")	<< endl;
-	cerr << "revents : " 												\
-		 << (fd.revents & POLLIN 	? " POLLIN |"	: "        |")		\
-		 << (fd.revents & POLLHUP	? " POLLHUP |"	: "         |")		\
-		 << (fd.revents & POLLERR	? " POLLERR |"	: "         |")		\
-		 << (fd.revents & POLLPRI	? " POLLPRI |"	: "         |")		\
-		 << (fd.revents & POLLOUT	? " POLLOUT |"	: "         |")		\
-		 << (fd.revents & POLLNVAL	? " POLLNVAL |"	: "          |")	<< endl;
-}
-
-void	webserver::clear_request() {
-	_http_request._full_request.clear();
-	_http_request._header.clear();
-	_http_request._body.clear();
-	_http_request._method.clear();
-	_http_request._uri.clear();
-	_http_request._version.clear();
-	_http_request._header_lines.clear();
-	_http_request._path.clear();
-}
-
-int webserver::get_server_id(int fd_tofind) const {
-	for (size_t n = 1; n < _pollsock.size(); n++)
-		if (_pollsock[n].fd == fd_tofind)
-			return n - 1;
-	return -1;
 }
 
 int webserver::get_config_index(unsigned short _port,
@@ -613,7 +322,7 @@ string webserver::autoindex(const string& path) const
 	dir = opendir(path.c_str());
 	if (!dir)
 		return "error";
-	body += "<html>\r\n<head>\n\
+body += "<html>\r\n<head>\n\
 <title>Index of "
 + path
 + "</title></head>\r\n\
@@ -631,7 +340,11 @@ string webserver::autoindex(const string& path) const
 		body += "<a href='" + _http_request._uri + (missing_slash ? "/" : "") + file_ent + "'>" + file_ent + "</a>\r\n";
 	}
 	body += "</body>\n</html>";
-	logn("index body: " + body);
+	logn("index body:\n" + body);
 	closedir(dir);
 	return body;
+}
+
+inline size_t get_read_bytes(string str) {
+	return (str.size() - str.find("\r\n\r\n") + 4);
 }
