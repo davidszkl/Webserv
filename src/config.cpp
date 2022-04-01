@@ -43,8 +43,7 @@ unsigned config::location::match_url(const std::string& url_path) const {
 config::config()
 : port(0), max_body(500)
 {
-	logn("WARNING: error_pages are not correctly initialized (TODO)");
-	const std::string default_error_path = "./server_files/";
+	const std::string default_error_path = "./server_files/error_pages/";
 	for(int i = 0; i < 5; i++)
 		error_pages[i] = default_error_path + to_string(i) + ".html";
 }
