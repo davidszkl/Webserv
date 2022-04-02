@@ -44,7 +44,13 @@ config::config()
 : port(0), max_body(500)
 {
 	const std::string default_error_path = "./server_files/error_pages/";
-	for(int i = 0; i < 5; i++)
+	for(int i = 200; i <= 206; i++)
+		error_pages[i] = default_error_path + to_string(i) + ".html";
+	for(int i = 300; i <= 307; i++)
+		error_pages[i] = default_error_path + to_string(i) + ".html";
+	for(int i = 400; i <= 417; i++)
+		error_pages[i] = default_error_path + to_string(i) + ".html";
+	for(int i = 500; i <= 505; i++)
 		error_pages[i] = default_error_path + to_string(i) + ".html";
 }
 
