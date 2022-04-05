@@ -4,8 +4,8 @@ import os, cgitb, sys
 cgitb.enable()
 
 def is_multipart(content_type):
-	if len(content_type) > len("multipart/form-data; boundary=")\
-	and content_type[:30] == "multipart/form-data; boundary=":
+	if content_type == None or (len(content_type) > len("multipart/form-data; boundary=")\
+	and content_type[:30] == "multipart/form-data; boundary="):
 		return True
 	return False
 

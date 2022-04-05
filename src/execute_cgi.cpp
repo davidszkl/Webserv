@@ -67,6 +67,12 @@ static std::size_t get_end_path(const std::string& path, const std::string& root
 	return std::string::npos;
 }
 
+static std::string get_end_file(const std::string& path)
+{
+	std::size_t i = path.rfind("/") + 1;
+	return path.substr(i, path.length() - i);	
+}
+
 //if post && define_query ->  pass it to stdin
 //if get && define query -> pass it as env
 //if define path -> pass it as env
@@ -79,13 +85,13 @@ static int setup_and_exec(int output_fd,
 		std::string exec_path,
 		std::string content_type,
 		bool define_content,
-		const std::string& upload_pass)
+		const std::string& upload_pass,
+		char **envp)
 {
 	std::string command = "/usr/bin/env";
 	std::string exec_path2 = exec_path;
 	while (exec_path2[exec_path2.length() - 1] != '/')
 		exec_path2 = exec_path2.substr(0, exec_path2.length() - 1);
-	command += " --chdir=" + exec_path2;
 	if (define_query && request == "GET")
 		command += " QUERY_STRING=" + query_string;
 	if (define_path)
@@ -95,7 +101,7 @@ static int setup_and_exec(int output_fd,
 	command += " REQUEST_METHOD=" + request;
 	if (upload_pass != "")
 		command += " UPLOAD_PASS=" + upload_pass;
-	command += " " + exec_path;
+	command += " ./" + get_end_file(exec_path);
 	int pipefds[2];
 	if (pipe(pipefds) == -1)
 	{
@@ -119,11 +125,18 @@ static int setup_and_exec(int output_fd,
 			perror("dup2()"); exit(1);
 		}
 		if (output_fd != 1) close(output_fd);
+		logn("child process changes dir to: " + exec_path2);
+		if (chdir(exec_path2.c_str()) == -1)
+		{
+			perror("chdir()");
+			exit(1);
+		}
+		logn("Commmand to split: " + command);
 		char **split = ft_split(command.c_str(), ' ');
 		if (!split) { perror("ft_split()"); exit(1); }
 		fix_content_in_split(split);
 		logn("executing " + exec_path + ":");
-		execve(split[0], (char * const *)split, 0);
+		execve(split[0], (char * const *)split, envp);
 		ft_freetab(const_cast<const char**>(split));
 		perror("execve()");
 		exit(1);
@@ -151,7 +164,7 @@ static int setup_and_exec(int output_fd,
 		1 -> system error
 		415 or 403 -> error page to display
  */
-int execute_cgi(const std::string& full_message, std::string root, const std::string& location, const std::string& upload_pass, int output_fd)
+int execute_cgi(const std::string& full_message, std::string root, const std::string& location, const std::string& upload_pass, int output_fd, char **envp)
 {
 	if (root != "" && root[root.length() -1] != '/') root += '/';
 	using std::string;
@@ -192,7 +205,7 @@ int execute_cgi(const std::string& full_message, std::string root, const std::st
 		logn("No QUERY_STRING will be defined/passed to stdin");
 	string content_type = get_header_info(full_message, "Content-Type");
 	bool define_content = (content_type != "");
-	return setup_and_exec(output_fd, request, define_query, query_string, define_path, path_info, exec_path, content_type, define_content, upload_pass);
+	return setup_and_exec(output_fd, request, define_query, query_string, define_path, path_info, exec_path, content_type, define_content, upload_pass, envp);
 }
 
 

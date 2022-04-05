@@ -22,7 +22,7 @@ int is_valid_for_cgi(const string& full_message, string root, const string& loca
 		1 -> system error
 		415 or 403 -> error page to display
  */
-int execute_cgi(const string& full_message, string root, const string& location, const string& upload_pass, int output_fd);
+int execute_cgi(const string& full_message, string root, const string& location, const string& upload_pass, int output_fd, char **envp);
 
 /*
 header must end with \r\n\r\n. Everything after that is ignored.

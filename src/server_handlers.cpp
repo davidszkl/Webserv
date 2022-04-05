@@ -159,7 +159,7 @@ int webserver::do_cgi(const config::location& current_block, const config& curre
 		case 0:
 			return 1;
 		case 1:
-			execute_cgi(_http_request._full_request, current_block.root, current_block.path, current_block.upload_dir, fd.fd); 
+			execute_cgi(_http_request._full_request, current_block.root, current_block.path, current_block.upload_dir, fd.fd, envp); 
 			switch (tmp2) {
 				case 0:
 					break;

@@ -100,6 +100,8 @@ public:
 		vector<string>	_header_lines;
 	};
 	
+	char **envp;
+
 private:
 
 	int				_config_index;
