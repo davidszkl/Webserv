@@ -4,14 +4,19 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	bool body					= true;
 	std::string& response_file	= _http_request._path;
 	const config::location& current_block = server._configs[_config_index].location_blocks[_location_index];
+	const config& current_server = server._configs[_config_index];
 	struct stat s;
 
+	cerr << "config_index = " << _config_index << endl;
 	if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),
 	 	"GET") == current_block.allowed_methods.end())
 	{
 		_response_code = METHOD_NOT_ALLOWED;
 		response_file = server._configs[_config_index].error_pages[METHOD_NOT_ALLOWED];
 	}
+	int tmp = do_cgi(current_block, current_server, server, fd);
+	if (!tmp)
+		return 0;
 	if (_http_request._path[_http_request._path.size() - 1] == '/')
 		_http_request._path += current_block.index;
 	logn("requestpath: " + _http_request._path);
@@ -82,12 +87,16 @@ int	webserver::handle_POST(const pollfd &fd, server &server) {
     bool body					= true;
     std::string& response_file	= _http_request._path;
     const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
+	const config& current_server = server._configs[_config_index];
 
     if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),"POST")== current_block.allowed_methods.end())
     {
         _response_code = METHOD_NOT_ALLOWED;
         response_file = server._configs[_config_index].error_pages[METHOD_NOT_ALLOWED];
     }
+	int tmp = do_cgi(current_block, current_server, server, fd);
+	if (!tmp)
+		return 0;
     if (_http_request._path[_http_request._path.size() - 1] == '/')
         _http_request._path += current_block.index;
     logn("requestpath: " + _http_request._path);
@@ -109,7 +118,7 @@ int	webserver::handle_POST(const pollfd &fd, server &server) {
 int	webserver::handle_DELETE(const pollfd &fd, server& server) {
 	bool body					= true;
 	std::string& response_file	= _http_request._path;
-	const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
+	const config::location& current_block = server._configs[_config_index].location_blocks[_location_index];
 
 	if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),
 	 	"DELETE") == current_block.allowed_methods.end())
@@ -140,4 +149,50 @@ int	webserver::handle_DELETE(const pollfd &fd, server& server) {
 inline bool file_exists (const string& name) {
     ifstream f(name.c_str());
     return f.good();
+}
+
+int webserver::do_cgi(const config::location& current_block, const config& current_server, server & server, const pollfd &fd) {
+	int tmp = is_valid_for_cgi(_http_request._full_request, current_block.root, current_block.path, current_server.max_body);
+	std::string& response_file	= _http_request._path;
+	int tmp2 = 0;
+	switch (tmp) {
+		case 0:
+			return 1;
+		case 1:
+			execute_cgi(_http_request._full_request, current_block.root, current_block.path, current_block.upload_dir, fd.fd); 
+			switch (tmp2) {
+				case 0:
+					break;
+				case 1:
+					logn("system errror in execute_cgi()");
+					break;
+				case FORBIDDEN:
+					_response_code = FORBIDDEN;
+					response_file = server._configs[_config_index].error_pages[FORBIDDEN];
+					send_response(fd, response_file, true);
+					break;
+				case UNSUPPORTED_MEDIA_TYPE:
+					_response_code = UNSUPPORTED_MEDIA_TYPE;
+					response_file = server._configs[_config_index].error_pages[UNSUPPORTED_MEDIA_TYPE];
+					send_response(fd, response_file, true);
+					break;
+			}
+			return 0;
+		case LENGTH_REQUIRED:
+			_response_code = LENGTH_REQUIRED;
+			response_file = server._configs[_config_index].error_pages[LENGTH_REQUIRED];
+			send_response(fd, response_file, true);
+			return 0;
+		case REQUEST_ENTITY_TOO_LARGE:
+			_response_code = REQUEST_ENTITY_TOO_LARGE;
+			response_file = server._configs[_config_index].error_pages[REQUEST_ENTITY_TOO_LARGE];
+			send_response(fd, response_file, true);
+			return 0;
+		case UNSUPPORTED_MEDIA_TYPE:
+			_response_code = UNSUPPORTED_MEDIA_TYPE;
+			response_file = server._configs[_config_index].error_pages[UNSUPPORTED_MEDIA_TYPE];
+			send_response(fd, response_file, true);
+			return 0;
+	}
+	return 0;
 }
