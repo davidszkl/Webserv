@@ -177,6 +177,8 @@ int execute_cgi(const std::string& full_message, std::string root, const std::st
 	std::string exec_path = root + path.substr(0, path_end);
 	logn("path to cgi executable==" + exec_path);
 	logn("cgi request==" + request);
+	if (upload_pass == "")
+		logn("Warning: upload_pass passed to cgi is empty");
 	std::size_t qpos = path_end;
 	while (qpos < path.length() && path[qpos] != '?')
 		qpos++;
