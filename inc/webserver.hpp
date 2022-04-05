@@ -78,6 +78,7 @@ public:
 	int		handle_GET(const pollfd& fd, server& server);
 	int		get_config_index(unsigned short _port, const vector<config>& _configs, const vector<string>& header_lines);
 	int		get_location_index(const string &uri, const config conf);
+	int		do_cgi(const config::location& current_block, const config& current_server, server & server, const pollfd &fd);
 	string	autoindex(const string& path) const;
 
 	class webserver_exception : public std::runtime_error

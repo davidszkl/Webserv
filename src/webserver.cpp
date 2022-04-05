@@ -24,9 +24,9 @@ webserver::webserver(vector<config> config_vector):	_response_code(404), _sockle
 	memset(&_pollfd, 0, sizeof(_pollfd));
 	_pollfd.fd	= -1;
 	try {
-		map<unsigned short, vector<config> > ports;
-		for(size_t n = 0; n < config_vector.size(); n++)
-			ports[config_vector[n].port].push_back(config_vector[n]);
+		map<unsigned short, vector<config> > ports;						//plusieurs serveurs peuvent ecouter sur un port
+		for(size_t n = 0; n < config_vector.size(); n++)				
+			ports[config_vector[n].port].push_back(config_vector[n]);	//trier les configs en fonction des ports
 		for(map_it n = ports.begin(); n != ports.end(); n++)
 			_servers.push_back(server(n->second));
 	}
@@ -245,7 +245,13 @@ void webserver::init_request(const server & server) {
 	logn("METHOD: " + _http_request._method);
 	ss >> _http_request._uri;
 	ss >> _http_request._version;
+	cerr << "params =\n"
+		<< "port = " << ntohs(server._port) << endl
+		<< "name = " << server._configs[0].server_name << endl
+		<< "name = " << server._configs[1].server_name << endl
+		<< "header = " << _http_request._header_lines[1] << endl;
 	_config_index = get_config_index(server._port, server._configs, _http_request._header_lines);
+	cerr << "index before " << _config_index << endl;
 	if (_config_index == -1)
 	{
 		logn("config index is -1. setting path to " + _http_request._uri);
@@ -286,20 +292,21 @@ int webserver::get_config_index(unsigned short _port,
         if (header_lines[i].compare(0, 6, "Host: ") == 0)
         {
             host = header_lines[i].substr(6, string::npos);
+			if (host.size() >= 2)
+				host = host.substr(0, host.size() - 2);
             break;
         }
     }
     for (std::size_t i = 0; i < _configs.size(); i++)
     {
         if (_configs[i].port != _port) continue;
-        if (host != "" && _configs[i].server_name != host) continue;
+        if (host != "" && _configs[i].server_name != host)
+			continue;
         return i;
     }
     for (std::size_t i = 0; i < _configs.size(); i++)
-    {
         if (_configs[i].port == _port)
         	return i;
-    }
 	logn("get_config_index returned -1. Host=" + host + " port=" + i_to_str(_port));
     return -1;
 }
