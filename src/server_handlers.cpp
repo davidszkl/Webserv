@@ -37,10 +37,6 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 		_response_code	= NOT_FOUND;
 		response_file	= server._configs[_config_index].error_pages[NOT_FOUND];
 	}
-	else if (_http_request._path.find("server_files") == string::npos) {
-		_response_code	= FORBIDDEN;
-		response_file	= server._configs[_config_index].error_pages[FORBIDDEN];
-	}
 	else
 		_response_code = OK;
 	logn("RESPONSE_FILE\n" + response_file);
@@ -103,20 +99,8 @@ int	webserver::handle_POST(const pollfd &fd, server &server) {
 	int tmp = do_cgi(current_block, current_server, server, fd);
 	if (!tmp)
 		return 0;
-    if (_http_request._path[_http_request._path.size() - 1] == '/')
-        _http_request._path += current_block.index;
-    logn("requestpath: " + _http_request._path);
-    if (!file_exists(_http_request._path)) {
-        _response_code = NOT_FOUND;
-        response_file = server._configs[_config_index].error_pages[NOT_FOUND];
-    }
-    else if (_http_request._path.find("server_files") == string::npos) {
-        _response_code = FORBIDDEN;
-        response_file = server._configs[_config_index].error_pages[FORBIDDEN];
-    }
-    else
-        _response_code = OK;
-    logn("RESPONSE_FILE\n" + response_file);
+    _response_code = LENGTH_REQUIRED;
+    response_file = server._configs[_config_index].error_pages[LENGTH_REQUIRED];
     send_response(fd, response_file, body);
     return 0;
 }
@@ -132,13 +116,9 @@ int	webserver::handle_DELETE(const pollfd &fd, server& server) {
 		_response_code = METHOD_NOT_ALLOWED;
 		response_file = server._configs[_config_index].error_pages[METHOD_NOT_ALLOWED];
 	}
-	if (!file_exists(_http_request._path)) {
+	else if (!file_exists(_http_request._path)) {
 		_response_code = NOT_FOUND;
 		response_file = server._configs[_config_index].error_pages[NOT_FOUND];
-	}
-	else if (_http_request._path.find("server_files") == std::string::npos) {
-		_response_code = FORBIDDEN;
-		response_file = server._configs[_config_index].error_pages[FORBIDDEN];
 	}
 	else
 	{

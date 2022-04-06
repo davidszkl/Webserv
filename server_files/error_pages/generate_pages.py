@@ -10,7 +10,6 @@ def generate_page(message, number):
 <div id="main">
 <div class="fof">
 <h1>Error {number}</h1>
-<img src="sunset.jpeg">
 </div>
 </div>
 </body>

@@ -1,5 +1,5 @@
 NAME	= webserv
-CC		= c++ -Wall -Wextra -Werror -std=c++98 -g3
+CC		= c++ -Wall -Wextra -Werror -std=c++98
 SRCDIR	= src
 INCDIR	= inc
 OBJDIR	= obj
