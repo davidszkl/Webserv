@@ -191,8 +191,9 @@ int webserver::get_server_id(int fd_tofind) const {
 void webserver::request_handler(const pollfd & fd, server & server) {
 	init_request(server);
 	cerr << _http_request._header << endl;
+	cerr << server._configs[_config_index].location_blocks[_location_index] << endl;
 	logn("request=================\n" + _http_request._full_request + "\nrequest=================");
-	logn("uri: " + _http_request._full_request);
+	logn("uri: " + _http_request._uri);
 	logn("");
 	if (!_http_request._method.size()	||
 		!_http_request._uri.size()		||
@@ -245,13 +246,7 @@ void webserver::init_request(const server & server) {
 	logn("METHOD: " + _http_request._method);
 	ss >> _http_request._uri;
 	ss >> _http_request._version;
-	cerr << "params =\n"
-		<< "port = " << ntohs(server._port) << endl
-		<< "name = " << server._configs[0].server_name << endl
-		<< "name = " << server._configs[1].server_name << endl
-		<< "header = " << _http_request._header_lines[1] << endl;
 	_config_index = get_config_index(server._port, server._configs, _http_request._header_lines);
-	cerr << "index before " << _config_index << endl;
 	if (_config_index == -1)
 	{
 		logn("config index is -1. setting path to " + _http_request._uri);
@@ -287,6 +282,7 @@ int webserver::get_config_index(unsigned short _port,
 {
 	_port = ntohs(_port);
     string host;
+	cerr << "host =" << host << endl;
     for (std::size_t i = 0; i < header_lines.size(); i++)
     {
         if (header_lines[i].compare(0, 6, "Host: ") == 0)
@@ -317,6 +313,9 @@ int webserver::get_location_index(const string& uri, const config conf)
     for (std::size_t i = 0; i < conf.location_blocks.size(); i++)
     {
         const int r = conf.location_blocks[i].match_url(uri);
+		cerr << "uri =" << uri << endl;
+		cerr << "candidate =" << conf.location_blocks[i].path << endl;
+		cerr << "r = " << r << endl;
         results.push_back(r);
     }
     int n = 0;

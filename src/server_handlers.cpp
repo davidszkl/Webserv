@@ -7,7 +7,6 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	const config& current_server = server._configs[_config_index];
 	struct stat s;
 
-	cerr << "config_index = " << _config_index << endl;
 	if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),
 	 	"GET") == current_block.allowed_methods.end())
 	{
@@ -23,6 +22,7 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
     if (current_block.autoindex && stat(_http_request._path.c_str(), &s) == 0 && (s.st_mode & S_IFDIR))
     {
 		logn("autoindexing from " + current_block.path);
+		_response_code = OK;
 		send_autoindex(fd);
 		return 0;
     }
@@ -89,6 +89,11 @@ int	webserver::handle_POST(const pollfd &fd, server &server) {
     const config::location & current_block = server._configs[_config_index].location_blocks[_location_index];
 	const config& current_server = server._configs[_config_index];
 
+	cerr << "config index = " << _config_index << endl;
+	cerr << "location index = " << _location_index << endl;
+	cerr << "path: " << current_block.path << endl
+		 << "root: " << current_block.root << endl
+		 << "index: " << current_block.index << endl;
     if (std::find(current_block.allowed_methods.begin(), current_block.allowed_methods.end(),"POST")== current_block.allowed_methods.end())
     {
         _response_code = METHOD_NOT_ALLOWED;
@@ -155,11 +160,13 @@ int webserver::do_cgi(const config::location& current_block, const config& curre
 	int tmp = is_valid_for_cgi(_http_request._full_request, current_block.root, current_block.path, current_server.max_body);
 	std::string& response_file	= _http_request._path;
 	int tmp2 = 0;
+	cerr << "upload dir = " << current_block.upload_dir << endl;
+	cerr << "tmp = " << tmp << endl;
 	switch (tmp) {
 		case 0:
 			return 1;
 		case 1:
-			execute_cgi(_http_request._full_request, current_block.root, current_block.path, current_block.upload_dir, fd.fd, envp); 
+			tmp2 = execute_cgi(_http_request._full_request, current_block.root, current_block.path, current_block.upload_dir, fd.fd, envp); 
 			switch (tmp2) {
 				case 0:
 					break;

@@ -166,6 +166,7 @@ static int setup_and_exec(int output_fd,
  */
 int execute_cgi(const std::string& full_message, std::string root, const std::string& location, const std::string& upload_pass, int output_fd, char **envp)
 {
+	cerr << "IN EXECUTE =" << upload_pass << endl;
 	if (root != "" && root[root.length() -1] != '/') root += '/';
 	using std::string;
 	logn("Executing cgi...");
