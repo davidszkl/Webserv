@@ -124,12 +124,15 @@ void webserver::listen_all()
 			logn("");
 			throw webserver_exception("Poll fatal error");
 		}
-		try {
-			int id = get_server_id(accept_fd);
-			request_handler(_pollsock[0], _servers[id]);
-		}
-		catch (webserver_exception & e) {
-			cerr << e.what() << endl;
+		if (read_rval != -2)
+		{
+			try {
+				int id = get_server_id(accept_fd);
+				request_handler(_pollsock[0], _servers[id]);
+			}
+			catch (webserver_exception & e) {
+				cerr << e.what() << endl;
+			}
 		}
 		close(_pollsock[0].fd);
 		_pollsock[0].fd		= 0;
@@ -145,8 +148,10 @@ int webserver::read_msg(int fd) {;
 	cerr << "Receiving message:\n";
 	logn("Method: " + _http_request._method);	
 	int end = recv(fd, &buffer, 10000, 0);
-	if (end < 0 || !find_crlf(string(buffer)))
+	if (end < 0)
 		return -1;
+	if (!find_crlf(string(buffer)))
+		return -2;
 	buffer[end] = '\0';
 	_http_request._full_request += buffer;
 	_content_length = std::atoi(get_header_info(_http_request._full_request, "Content-Length").c_str());
