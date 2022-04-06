@@ -12,6 +12,13 @@ def is_multipart(content_type):
 		return True
 	return False
 
+def append_pwd(upload_pass):
+	if len(upload_pass) >= 2 and upload_pass[0:2] == './':
+		upload_pass = upload_pass[2:]
+	if len(upload_pass) >= 1 and upload_pass[0] != '/':
+		upload_pass = os.getenv('PWD') + '/' + upload_pass
+	return upload_pass
+
 upload_pass = os.getenv("UPLOAD_PASS")
 body = sys.stdin.read()
 content_type = os.getenv("CONTENT_TYPE")
@@ -23,6 +30,9 @@ if not is_multipart(content_type):
 if upload_pass == None or upload_pass == "":
     eprint(f"(upload.py): upload pass is empty or not defined")
     exit(403)
+
+upload_pass = append_pwd(upload_pass)
+eprint('final upload_pass:', upload_pass)
 
 boundary = content_type[content_type.find("boundary=") + 9:]
 

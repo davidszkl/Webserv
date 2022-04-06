@@ -279,9 +279,9 @@ int webserver::get_config_index(unsigned short _port,
 			continue;
         return i;
     }
-    for (std::size_t i = 0; i < _configs.size(); i++)
-        if (_configs[i].port == _port)
-        	return i;
+	for (std::size_t i = 0; i < _configs.size(); i++)
+		if (_configs[i].port == _port)
+			return i;
 	logn("get_config_index returned -1. Host=" + host + " port=" + i_to_str(_port));
     return -1;
 }
