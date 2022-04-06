@@ -140,7 +140,7 @@ static void check_valid_locations(const config& c)
 		const std::string& s = c.location_blocks[i].path;
 		for(std::size_t j = 0; j < s.length(); j++)
 		{
-			if(!(std::isalnum(s[j]) || s[j] == '/' || s[j] == '_'))
+			if(!(std::isalnum(s[j]) || s[j] == '/' || s[j] == '_' || s[j] == '-'))
 				throw std::runtime_error("Invalid character '" + s.substr(j, 1) + "' in location: " + s);
 		}
 		if (s.find("//") != std::string::npos)
