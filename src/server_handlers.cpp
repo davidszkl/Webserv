@@ -21,6 +21,7 @@ int	webserver::handle_GET(const pollfd &fd, server & server) {
 	logn("requestpath: " + _http_request._path);
     if (current_block.autoindex && stat(_http_request._path.c_str(), &s) == 0 && (s.st_mode & S_IFDIR))
     {
+		_response_code = OK;
 		logn("autoindexing from " + current_block.path);
 		_response_code = OK;
 		send_autoindex(fd);
