@@ -114,12 +114,7 @@ void webserver::listen_all()
 		}
 
 		if (!(_pollsock[0].revents & POLLIN))
-		{
-			//TO ERASE==========================
-			sleep(1);
-			//TO ERASE==========================
 			continue ;
-		}
 
 		int read_rval = read_msg(_pollsock[0].fd);
 		if (read_rval == -1) {
