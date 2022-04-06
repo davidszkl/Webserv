@@ -140,39 +140,18 @@ void webserver::listen_all()
 }
 
 int webserver::read_msg(int fd) {;
-	char buffer[100] = {0};
+	char buffer[10000] = {0};
 	clear_request();
 	cerr << "Receiving message:\n";
-	logn("Method: " + _http_request._method);
-	while(!find_crlf(string(_http_request._full_request)))
-	{
-		int end = recv(fd, &buffer, 100, 0);
-		if (end < 0)
-			return -1;
-		buffer[end] = '\0';
-		_http_request._full_request += buffer;
-	}
-	if (!_http_request._full_request.find("POST"))
-	{
-		_content_length = std::atoi(get_header_info(_http_request._full_request, "Content-Length").c_str());
-		log("_content_length = ");
-		logn(_content_length);
-		size_t read_bytes = get_read_bytes(_http_request._full_request);
-		log("read_bytes = ");
-		logn(read_bytes);
-		logn("");
-		while(read_bytes < _content_length)
-		{
-			int end = recv(fd, &buffer, 100, 0);
-			if (end < 0)
-				return -1;
-			read_bytes += end;
-			buffer[end] = '\0';
-			_http_request._full_request += buffer;
-		}
-	}
-	logn("received all of the message");
-	logn("");
+	logn("Method: " + _http_request._method);	
+	int end = recv(fd, &buffer, 10000, 0);
+	if (end < 0 || !find_crlf(string(buffer)))
+		return -1;
+	buffer[end] = '\0';
+	_http_request._full_request += buffer;
+	_content_length = std::atoi(get_header_info(_http_request._full_request, "Content-Length").c_str());
+	log("_content_length = ");
+	logn(_content_length);
 	return 0;
 }
 
