@@ -283,9 +283,6 @@ int webserver::get_location_index(const string& uri, const config conf)
     for (std::size_t i = 0; i < conf.location_blocks.size(); i++)
     {
         const int r = conf.location_blocks[i].match_url(uri);
-		cerr << "uri =" << uri << endl;
-		cerr << "candidate =" << conf.location_blocks[i].path << endl;
-		cerr << "r = " << r << endl;
         results.push_back(r);
     }
     int n = 0;

@@ -9,10 +9,9 @@ OBJ		= $(subst $(SRCDIR), $(OBJDIR), $(SRC:cpp=o))
 
 all: $(OBJDIR) $(OBJ)
 	$(CC) -o $(NAME) $(OBJ)
-	make -C client/
 
 test: $(INCDIR)/*.hpp
-	$(CC) -I$(INCDIR) $(SRC) -DTEST -o $(NAME)
+	$(CC) -I$(INCDIR) $(SRC) -o $(NAME)
 
 $(NAME): all
 
@@ -29,6 +28,5 @@ fclean: clean
 	rm -f $(NAME)
 	rm -rf $(NAME).dSYM
 	rm -rf $(OBJDIR)
-	make clean -C client/
 
 re: fclean all
