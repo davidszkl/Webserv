@@ -17,7 +17,7 @@ string read_args(int argc, char *argv[])
 	return "";
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[], char *envp[])
 {
 	string path;
 	try {
@@ -35,7 +35,8 @@ int main(int argc, char *argv[])
 		return CONFIG_ERROR;
 	}
 	try {
-		webserver main_server(vec);				//all servers initialized in webserver constructor
+		webserver main_server(vec);
+		main_server.envp = reinterpret_cast<char**>(envp);				//all servers initialized in webserver constructor
 		main_server.listen_all();				//main function listening on all servers
 	}
 	catch (server::server_exception &e) {		//one of the servers couldn't be initialized

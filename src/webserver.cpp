@@ -15,9 +15,9 @@ webserver::webserver(vector<config> config_vector):	_response_code(404), _sockle
 	memset(&_pollfd, 0, sizeof(_pollfd));
 	_pollfd.fd	= -1;
 	try {
-		map<unsigned short, vector<config> > ports;
-		for(size_t n = 0; n < config_vector.size(); n++)
-			ports[config_vector[n].port].push_back(config_vector[n]);
+		map<unsigned short, vector<config> > ports;						//plusieurs serveurs peuvent ecouter sur un port
+		for(size_t n = 0; n < config_vector.size(); n++)				
+			ports[config_vector[n].port].push_back(config_vector[n]);	//trier les configs en fonction des ports
 		for(map_it n = ports.begin(); n != ports.end(); n++)
 			_servers.push_back(server(n->second));
 	}
@@ -115,12 +115,15 @@ void webserver::listen_all()
 			logn("");
 			throw webserver_exception("Poll fatal error");
 		}
-		try {
-			int id = get_server_id(accept_fd);
-			request_handler(_pollsock[0], _servers[id]);
-		}
-		catch (webserver_exception & e) {
-			cerr << e.what() << endl;
+		if (read_rval != -2)
+		{
+			try {
+				int id = get_server_id(accept_fd);
+				request_handler(_pollsock[0], _servers[id]);
+			}
+			catch (webserver_exception & e) {
+				cerr << e.what() << endl;
+			}
 		}
 		close(_pollsock[0].fd);
 		_pollsock[0].fd		= 0;
@@ -131,39 +134,20 @@ void webserver::listen_all()
 }
 
 int webserver::read_msg(int fd) {;
-	char buffer[100] = {0};
+	char buffer[10000] = {0};
 	clear_request();
 	cerr << "Receiving message:\n";
-	logn("Method: " + _http_request._method);
-	while(!find_crlf(string(_http_request._full_request)))
-	{
-		int end = recv(fd, &buffer, 100, 0);
-		if (end < 0)
-			return -1;
-		buffer[end] = '\0';
-		_http_request._full_request += buffer;
-	}
-	if (!_http_request._full_request.find("POST"))
-	{
-		_content_length = std::atoi(get_header_info(_http_request._full_request, "Content-Length").c_str());
-		log("_content_length = ");
-		logn(_content_length);
-		size_t read_bytes = get_read_bytes(_http_request._full_request);
-		log("read_bytes = ");
-		logn(read_bytes);
-		logn("");
-		while(read_bytes < _content_length)
-		{
-			int end = recv(fd, &buffer, 100, 0);
-			if (end < 0)
-				return -1;
-			read_bytes += end;
-			buffer[end] = '\0';
-			_http_request._full_request += buffer;
-		}
-	}
-	logn("received all of the message");
-	logn("");
+	logn("Method: " + _http_request._method);	
+	int end = recv(fd, &buffer, 10000, 0);
+	if (end < 0)
+		return -1;
+	if (!find_crlf(string(buffer)))
+		return -2;
+	buffer[end] = '\0';
+	_http_request._full_request += buffer;
+	_content_length = std::atoi(get_header_info(_http_request._full_request, "Content-Length").c_str());
+	log("_content_length = ");
+	logn(_content_length);
 	return 0;
 }
 
@@ -177,8 +161,9 @@ int webserver::get_server_id(int fd_tofind) const {
 void webserver::request_handler(const pollfd & fd, server & server) {
 	init_request(server);
 	cerr << _http_request._header << endl;
+	cerr << server._configs[_config_index].location_blocks[_location_index] << endl;
 	logn("request=================\n" + _http_request._full_request + "\nrequest=================");
-	logn("uri: " + _http_request._full_request);
+	logn("uri: " + _http_request._uri);
 	logn("");
 	if (!_http_request._method.size()	||
 		!_http_request._uri.size()		||
@@ -267,25 +252,27 @@ int webserver::get_config_index(unsigned short _port,
 {
 	_port = ntohs(_port);
     string host;
+	cerr << "host =" << host << endl;
     for (std::size_t i = 0; i < header_lines.size(); i++)
     {
         if (header_lines[i].compare(0, 6, "Host: ") == 0)
         {
             host = header_lines[i].substr(6, string::npos);
+			if (host.size() >= 2)
+				host = host.substr(0, host.size() - 2);
             break;
         }
     }
     for (std::size_t i = 0; i < _configs.size(); i++)
     {
         if (_configs[i].port != _port) continue;
-        if (host != "" && _configs[i].server_name != host) continue;
+        if (host != "" && _configs[i].server_name != host)
+			continue;
         return i;
     }
-    for (std::size_t i = 0; i < _configs.size(); i++)
-    {
-        if (_configs[i].port == _port)
-        	return i;
-    }
+	for (std::size_t i = 0; i < _configs.size(); i++)
+		if (_configs[i].port == _port)
+			return i;
 	logn("get_config_index returned -1. Host=" + host + " port=" + i_to_str(_port));
     return -1;
 }
@@ -296,6 +283,9 @@ int webserver::get_location_index(const string& uri, const config conf)
     for (std::size_t i = 0; i < conf.location_blocks.size(); i++)
     {
         const int r = conf.location_blocks[i].match_url(uri);
+		cerr << "uri =" << uri << endl;
+		cerr << "candidate =" << conf.location_blocks[i].path << endl;
+		cerr << "r = " << r << endl;
         results.push_back(r);
     }
     int n = 0;

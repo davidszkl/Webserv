@@ -3,11 +3,21 @@
 import os, cgitb, sys
 cgitb.enable()
 
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
 def is_multipart(content_type):
-	if len(content_type) > len("multipart/form-data; boundary=")\
-	and content_type[:30] == "multipart/form-data; boundary=":
+	if content_type == None or (len(content_type) > len("multipart/form-data; boundary=")\
+	and content_type[:30] == "multipart/form-data; boundary="):
 		return True
 	return False
+
+def append_pwd(upload_pass):
+	if len(upload_pass) >= 2 and upload_pass[0:2] == './':
+		upload_pass = upload_pass[2:]
+	if len(upload_pass) >= 1 and upload_pass[0] != '/':
+		upload_pass = os.getenv('PWD') + '/' + upload_pass
+	return upload_pass
 
 upload_pass = os.getenv("UPLOAD_PASS")
 body = sys.stdin.read()
@@ -15,9 +25,14 @@ content_type = os.getenv("CONTENT_TYPE")
 
 # eror checking
 if not is_multipart(content_type):
-	exit(415)
+    eprint(f"(upload.py): content_type is not multipart")
+    exit(415)
 if upload_pass == None or upload_pass == "":
-	exit(403)
+    eprint(f"(upload.py): upload pass is empty or not defined")
+    exit(403)
+
+upload_pass = append_pwd(upload_pass)
+eprint('final upload_pass:', upload_pass)
 
 boundary = content_type[content_type.find("boundary=") + 9:]
 
@@ -34,14 +49,19 @@ fnameend = fnamebegin + body[fnamebegin:].find('"\r\n')
 file_name = body[fnamebegin:fnameend]
 
 if upload_pass[-1] != '/':
-	upload_pass += '/'
+    upload_pass += '/'
 
 file_path = upload_pass + file_name
 
+eprint(f"(upload.py): file to create: {file_path}")
+
 try:
-	fp = open(file_path, 'w')
+    fp = open(file_path, 'w')
 except:
-	exit(403)
+    eprint(f"(upload.py): cannot open {file_path}")
+    exit(403)
+
+eprint(f"(upload.py): created {file_path}")
 
 fp.write(file_body)
 
