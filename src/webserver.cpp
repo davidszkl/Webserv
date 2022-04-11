@@ -1,7 +1,6 @@
 #include "webserver.hpp"
 #include "debug.hpp"
 
-//TO_ERASE=====================================
 bool _server_alive = true;
 
 void server_shutdown(int signbr) {
@@ -9,18 +8,10 @@ void server_shutdown(int signbr) {
 	_server_alive = false;
 }
 
-void show_detailed(char *str) {
-	for (size_t n = 0; n < strlen(str); n++)
-		cerr << n + 1 << ": \'" << str[n] << "\'" << "= " << (int)str[n] << endl;
-}
-//TO_ERASE======================================
-
 webserver::webserver(vector<config> config_vector):	_response_code(404), _socklen(sizeof(_client_addr))
 {
-	//TO_ERASE================================
 	signal(SIGINT, &server_shutdown);
 	_server_alive = true;
-	//TO_ERASE================================
 	memset(&_pollfd, 0, sizeof(_pollfd));
 	_pollfd.fd	= -1;
 	try {
@@ -81,12 +72,12 @@ void webserver::listen_all()
 			cerr << "Waiting for connection.\r";
 			if ((rval = poll(&_pollsock[0], _pollsock.size(), 1000)))
 				break ;
-			cerr << "Waiting for connection..\r";
-			if ((rval = poll(&_pollsock[0], _pollsock.size(), 1000)))
-				break ;
-			cerr << "Waiting for connection...\r";
-			if ((rval = poll(&_pollsock[0], _pollsock.size(), 1000)))
-				break ;
+			// cerr << "Waiting for connection..\r";						style
+			// if ((rval = poll(&_pollsock[0], _pollsock.size(), 1000)))
+			// 	break ;
+			// cerr << "Waiting for connection...\r";
+			// if ((rval = poll(&_pollsock[0], _pollsock.size(), 1000)))
+			// 	break ;
 			cerr << "                         \r";
 		}
 		cerr << endl;
@@ -114,12 +105,7 @@ void webserver::listen_all()
 		}
 
 		if (!(_pollsock[0].revents & POLLIN))
-		{
-			//TO ERASE==========================
-			sleep(1);
-			//TO ERASE==========================
 			continue ;
-		}
 
 		int read_rval = read_msg(_pollsock[0].fd);
 		if (read_rval == -1) {
