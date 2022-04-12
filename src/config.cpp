@@ -35,10 +35,22 @@ std::ostream& operator <<(std::ostream& o, const config& c)
 }
 
 unsigned config::location::match_url(const std::string& url_path) const {
-	if (url_path.length() < path.length()) return 0;
-	if (url_path.compare(0, path.length(), path) != 0) return 0;
-	if (url_path[path.length() - 1] != '/') return 0;
-	return path.length();
+	std::string url_path_tmp = url_path;
+	std::string path_tmp = path;
+
+	if (url_path.length() < path.length())
+		return 0;
+	if (url_path.compare(0, path.length(), path) != 0)
+		return 0;
+	if (url_path[url_path.length() - 1] != '/')
+		url_path_tmp += "/";
+	if (path[path.length() - 1] == '/')
+		path_tmp = path.substr(0, path.length() - 1);
+	if (path_tmp.length() == url_path_tmp.length())
+		return path.length();
+	if (url_path_tmp[path_tmp.length()] == '/')
+		return path.length();
+	return 0;
 }
 
 config::config()
